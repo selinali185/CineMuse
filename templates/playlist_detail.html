@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | {{ playlist.playlist_name }}{% endblock %}
+{% block content %}
+<section class="panel playlist-detail-panel">
+  <div class="playlist-detail-top">
+    <div class="playlist-detail-header">
+      {% if playlist.cover_image_url %}
+        <img class="playlist-detail-cover" src="{{ playlist.cover_image_url }}" alt="{{ playlist.playlist_name }} cover">
+      {% else %}
+        <div class="playlist-detail-cover playlist-detail-cover-placeholder">No cover</div>
+      {% endif %}
+      <div class="playlist-detail-meta">
+        <h1>{{ playlist.playlist_name }}</h1>
+        <p class="muted">{{ playlist.movie_count }} movies</p>
+        {% if playlist.description %}
+          <p class="muted">{{ playlist.description }}</p>
+        {% endif %}
+      </div>
+    </div>
+    <button type="button" class="playlist-edit-btn" data-open-playlist-edit>edit</button>
+  </div>
+
+  <div id="playlist-edit-modal" class="modal" aria-hidden="true">
+    <div class="modal-content playlist-edit-modal-content">
+      <div class="modal-head">
+        <h3>Edit Playlist</h3>
+        <button type="button" class="modal-close" data-close-playlist-edit>&times;</button>
+      </div>
+      <form method="post" enctype="multipart/form-data" class="playlist-edit-form">
+        <div class="playlist-edit-preview">
+          {% if playlist.cover_image_url %}
+            <img class="playlist-detail-cover" src="{{ playlist.cover_image_url }}" alt="{{ playlist.playlist_name }} cover">
+          {% else %}
+            <div class="playlist-detail-cover playlist-detail-cover-placeholder">No cover</div>
+          {% endif %}
+          <div>
+            <label for="playlist-edit-title">Title</label>
+            <input id="playlist-edit-title" name="playlist_name" value="{{ playlist.playlist_name }}" required>
+          </div>
+        </div>
+        <label for="playlist-edit-cover">Cover Image</label>
+        <input id="playlist-edit-cover" type="file" name="cover_image" accept="image/png,image/jpeg,image/webp,image/gif">
+        <label for="playlist-edit-description">Description</label>
+        <textarea id="playlist-edit-description" name="description" rows="4" maxlength="250" placeholder="Describe this playlist...">{{ playlist.description or '' }}</textarea>
+        <p class="playlist-description-counter muted" id="playlist-description-counter">0/250 characters</p>
+        <div class="playlist-edit-actions">
+          <button
+            class="small-btn danger"
+            type="submit"
+            name="action"
+            value="delete_playlist"
+            onclick="return confirm('Delete this playlist? This cannot be undone.')"
+          >Delete Playlist</button>
+          <button class="btn" type="submit" name="action" value="edit_playlist">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <details class="playlist-add-more">
+    <summary class="playlist-add-more-summary">
+      <span class="playlist-add-more-plus">+</span>
+      <span>add more to playlist</span>
+    </summary>
+    {% if addable_movies %}
+      <form method="post" class="playlist-add-more-form">
+        <input
+          id="playlist-add-movie-search"
+          class="create-playlist-search"
+          type="text"
+          placeholder="Search movies to add..."
+          autocomplete="off"
+        >
+        <div class="create-playlist-movie-grid">
+          {% for movie in addable_movies %}
+            <label class="create-playlist-movie-option playlist-add-movie-option" data-movie-title="{{ movie.title|lower }}">
+              <input type="checkbox" name="movie_ids" value="{{ movie.movie_id }}">
+              {% if movie.poster_url %}
+                <img class="create-playlist-movie-poster" src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+              {% else %}
+                <div class="create-playlist-movie-poster create-playlist-movie-poster-placeholder">No poster</div>
+              {% endif %}
+              <span class="create-playlist-movie-title">{{ movie.title }}</span>
+            </label>
+          {% endfor %}
+        </div>
+        <div class="create-playlist-actions">
+          <button class="btn" type="submit">Add Selected</button>
+        </div>
+      </form>
+    {% else %}
+      <p class="muted">All available movies are already in this playlist.</p>
+    {% endif %}
+  </details>
+
+  <div class="playlist-movie-grid">
+    {% for movie in playlist_movies %}
+      <article class="playlist-movie-card">
+        <a class="favorite-link" href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">
+          {% if movie.poster_url %}
+            <img class="favorite-poster" src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+          {% else %}
+            <div class="favorite-poster favorite-poster-placeholder">No poster</div>
+          {% endif %}
+        </a>
+        <p class="favorite-title">
+          <a href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">{{ movie.title }}</a>
+          {% set movie_id = movie.movie_id %}{% include '_movie_heart.html' %}
+        </p>
+      </article>
+    {% else %}
+      <p>No movies in this playlist yet.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

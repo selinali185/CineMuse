@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}CineMuse{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="{{ url_for('home') }}"><span class="logo-cine">Cine</span><span class="logo-muse">Muse</span></a>
+      {% if session_user %}
+      <nav class="navlinks">
+        <div class="topbar-search" data-topbar-search data-suggest-url="{{ url_for('search_suggest') }}">
+          <button type="button" aria-label="Search" title="Search" class="icon-link topbar-search-toggle" data-topbar-search-toggle>
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"></circle>
+              <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
+            </svg>
+          </button>
+          <div class="topbar-search-inline" data-topbar-search-inline hidden>
+            <input
+              type="search"
+              class="topbar-search-input"
+              placeholder="Search movies, directors, users"
+              autocomplete="off"
+              data-topbar-search-input
+            >
+          </div>
+        </div>
+        <a href="{{ url_for('mail') }}" aria-label="Mail" title="Mail" class="icon-link">
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2" ry="2"></rect>
+            <polyline points="3,7 12,13 21,7"></polyline>
+          </svg>
+        </a>
+        <a href="{{ url_for('sync_tmdb') }}">Sync TMDB</a>
+        <a class="settings-gear" href="{{ url_for('settings') }}" aria-label="Settings" title="Settings">⚙</a>
+        <div class="profile-menu-wrap">
+          <button class="profile-menu-btn" type="button" aria-label="Open profile menu" data-profile-menu-toggle>
+            {% if session_user.profile_picture_url %}
+              <img class="topbar-avatar" src="{{ session_user.profile_picture_url }}" alt="{{ session_user.username }} avatar">
+            {% else %}
+              <span class="topbar-avatar topbar-avatar-fallback">{{ session_user.username[:1]|upper }}</span>
+            {% endif %}
+          </button>
+          <div class="profile-menu" data-profile-menu>
+            <a href="{{ url_for('profile') }}">Profile</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+          </div>
+        </div>
+      </nav>
+      {% else %}
+      {% if request.endpoint == 'logged_out' %}
+      <nav class="navlinks">
+        <a href="{{ url_for('login') }}">Login</a>
+        <a href="{{ url_for('signup') }}">Sign Up</a>
+      </nav>
+      {% endif %}
+      {% endif %}
+    </header>
+
+    <main class="container">
+      {% if request.endpoint != 'home' %}
+        <a
+          class="back-nav-link"
+          href="{{ request.referrer or url_for('home') }}"
+          data-back-link
+          aria-label="Go back"
+          title="Go back"
+        >
+          <svg class="back-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="11,6 5,12 11,18"></polyline>
+          </svg>
+        </a>
+      {% endif %}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-wrap">
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+    <div id="search-user-panel-overlay" class="search-user-panel-overlay" aria-hidden="true">
+      <aside id="search-user-panel" class="search-user-panel" aria-label="User profile preview">
+        <div class="search-user-panel-head">
+          <h3>Profile</h3>
+          <button type="button" class="modal-close" data-close-user-panel>&times;</button>
+        </div>
+        <div id="search-user-panel-content" class="search-user-panel-content"></div>
+      </aside>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <footer class="api-credit">
+      Movie metadata provided by TMDB.
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,33 @@
+<section class="panel user-panel-card">
+  <div class="detail-grid">
+    <div>
+      {% if movie.poster_url %}
+        <img class="poster" src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+      {% else %}
+        <div class="poster placeholder">No poster available</div>
+      {% endif %}
+    </div>
+    <div>
+      <h3>{{ movie.title }}{% if movie.release_year %} ({{ movie.release_year }}){% endif %}</h3>
+      <p><strong>Rating:</strong> {{ movie.rating }}/5</p>
+      <p>
+        <strong>Genre:</strong>
+        {% if movie.genre_id %}
+          <a class="link" href="{{ url_for('genre_detail', genre_id=movie.genre_id) }}">{{ movie.genre_name }}</a>
+        {% else %}
+          {{ movie.genre_name or 'N/A' }}
+        {% endif %}
+      </p>
+      <p>
+        <strong>Director:</strong>
+        {% if movie.director_id %}
+          <a class="link" href="{{ url_for('director_detail', director_id=movie.director_id) }}">{{ movie.director_first_name }} {{ movie.director_last_name }}</a>
+        {% else %}
+          N/A
+        {% endif %}
+      </p>
+      <p>{{ movie.description or 'No description available.' }}</p>
+      <p><a class="link" href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">Open full movie page</a></p>
+    </div>
+  </div>
+</section>

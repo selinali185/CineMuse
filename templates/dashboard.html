@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Home{% endblock %}
+{% block content %}
+<h1 class="page-title">Hello, <span class="home-user">{{ session_user.name }}.</span> Here’s what your friends are up to.</h1>
+
+<div class="grid home-grid">
+  <section class="panel">
+    <h2>New from Friends</h2>
+    {% if friend_activity %}
+      <div class="friends-review-carousel" data-friends-review-carousel>
+        <button type="button" class="friends-review-arrow friends-review-arrow-left" data-friends-review-prev aria-label="Previous friend reviews">
+          &#8249;
+        </button>
+        <div class="friends-review-viewport" data-friends-review-viewport>
+          <div class="friends-review-track">
+            {% for item in friend_activity %}
+              <a
+                class="friends-review-card"
+                href="{{ url_for('movie_detail', movie_id=item.movie_id) }}"
+                data-open-user-panel
+                data-panel-url="{{ url_for('review_panel', review_id=item.review_id) }}"
+              >
+                {% if item.poster_url %}
+                  <img class="friends-review-poster" src="{{ item.poster_url }}" alt="{{ item.title }} poster">
+                {% else %}
+                  <div class="friends-review-poster friends-review-poster-placeholder">No poster</div>
+                {% endif %}
+                <p class="friends-review-title">{{ item.title }}</p>
+                <p class="friends-review-meta">
+                  <span class="friends-review-username">@{{ item.username }}</span>
+                  {% set tokens = item.rating|rating_star_tokens %}
+                  {% if tokens %}
+                    <span class="rating-stars" aria-label="{{ item.rating }} out of 5">
+                      {% for t in tokens %}
+                        <span class="rating-star {{ t }}">{% if t == 'empty' %}☆{% else %}★{% endif %}</span>
+                      {% endfor %}
+                    </span>
+                  {% endif %}
+                  {% if item.liked_movie %}
+                    <span class="review-liked-heart" aria-label="Liked">
+                      <svg viewBox="0 0 24 24" class="heart-icon" aria-hidden="true">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+                      </svg>
+                    </span>
+                  {% endif %}
+                  {% if item.review_text and item.review_text|trim %}
+                    <span class="review-text-badge" aria-label="Has review text">≡</span>
+                  {% endif %}
+                </p>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+        <button type="button" class="friends-review-arrow friends-review-arrow-right" data-friends-review-next aria-label="Next friend reviews">
+          &#8250;
+        </button>
+      </div>
+    {% else %}
+      <p>No friend activity yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>Popular This Week</h2>
+    {% if recommended %}
+      <div class="popular-week-carousel" data-popular-week-carousel>
+        <button type="button" class="popular-week-arrow popular-week-arrow-left" data-popular-week-prev aria-label="Previous popular movies">
+          &#8249;
+        </button>
+        <div class="popular-week-viewport" data-popular-week-viewport>
+          <div class="popular-week-track">
+            {% for movie in recommended %}
+              <article class="popular-week-card">
+                <a class="popular-week-poster-link" href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">
+                  {% if movie.poster_url %}
+                    <img class="popular-week-poster" src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+                  {% else %}
+                    <div class="popular-week-poster popular-week-poster-placeholder">No poster</div>
+                  {% endif %}
+                </a>
+                <p class="popular-week-title">
+                  <a href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">{{ movie.title }}</a>
+                </p>
+              </article>
+            {% endfor %}
+          </div>
+        </div>
+        <button type="button" class="popular-week-arrow popular-week-arrow-right" data-popular-week-next aria-label="Next popular movies">
+          &#8250;
+        </button>
+      </div>
+    {% else %}
+      <p>No watches yet this week.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>Current News</h2>
+    {% if news_items %}
+      <div class="current-news-scroll">
+        <div class="current-news-grid">
+          {% for news in news_items %}
+            <a class="current-news-card" href="{{ news.news_url }}" target="_blank" rel="noreferrer">
+              <div class="current-news-image-wrap">
+                {% if news.news_image_url %}
+                  <img class="current-news-image" src="{{ news.news_image_url }}" alt="{{ news.news_name }}">
+                {% else %}
+                  <div class="current-news-image current-news-image-placeholder">No image</div>
+                {% endif %}
+              </div>
+              <div class="current-news-copy">
+                <strong class="current-news-title">{{ news.news_name }}</strong>
+                <span class="current-news-desc">{{ news.news_summary or news.news_source or 'News update' }}</span>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    {% else %}
+      <p>No news available.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>Playlists from Friends</h2>
+    {% if playlists %}
+      <div class="friend-playlists-grid">
+        {% for playlist in playlists %}
+          <article class="friend-playlist-card">
+            <a class="friend-playlist-cover-link" href="{{ url_for('playlist_detail', playlist_id=playlist.playlist_id) }}">
+              {% if playlist.cover_image_url %}
+                <img class="friend-playlist-cover" src="{{ playlist.cover_image_url }}" alt="{{ playlist.playlist_name }} cover">
+              {% else %}
+                <div class="friend-playlist-cover friend-playlist-cover-placeholder">No cover</div>
+              {% endif %}
+            </a>
+            <p class="friend-playlist-title">
+              <a href="{{ url_for('playlist_detail', playlist_id=playlist.playlist_id) }}">{{ playlist.playlist_name }}</a>
+            </p>
+            <p class="friend-playlist-owner">by @{{ playlist.username }}</p>
+          </article>
+        {% endfor %}
+      </div>
+      <a class="home-see-more" href="{{ url_for('friends_playlists') }}">see more</a>
+    {% else %}
+      <p>No playlists yet.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

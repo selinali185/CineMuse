@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Local runtime DB
+cinemuse.db
+
+# User-uploaded media
+static/uploads/

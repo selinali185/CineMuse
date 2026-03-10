@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Create Playlist{% endblock %}
+{% block content %}
+<section class="panel create-playlist-panel">
+  <h1>Create Playlist</h1>
+  <form method="post" enctype="multipart/form-data" class="create-playlist-form">
+    <label for="playlist-name">Playlist Name</label>
+    <input id="playlist-name" name="playlist_name" placeholder="Enter playlist name" required>
+
+    <label for="cover-image">Playlist Cover Image</label>
+    <input id="cover-image" type="file" name="cover_image" accept="image/png,image/jpeg,image/webp,image/gif">
+
+    <h2>Add Movies</h2>
+    <p class="muted">Select one or more movies for this playlist.</p>
+    <input
+      id="create-playlist-movie-search"
+      class="create-playlist-search"
+      type="text"
+      placeholder="Search movies to add..."
+      autocomplete="off"
+    >
+    <div class="create-playlist-movie-grid">
+      {% for movie in movies %}
+        <label class="create-playlist-movie-option" data-movie-title="{{ movie.title|lower }}">
+          <input type="checkbox" name="movie_ids" value="{{ movie.movie_id }}">
+          {% if movie.poster_url %}
+            <img class="create-playlist-movie-poster" src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+          {% else %}
+            <div class="create-playlist-movie-poster create-playlist-movie-poster-placeholder">No poster</div>
+          {% endif %}
+          <span class="create-playlist-movie-title">{{ movie.title }}</span>
+        </label>
+      {% endfor %}
+    </div>
+
+    <div class="create-playlist-actions">
+      <button class="btn" type="submit">Create Playlist</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

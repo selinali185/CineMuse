@@ -1,0 +1,27 @@
+<section class="panel user-panel-card">
+  <div class="detail-grid">
+    <div>
+      {% if director.profile_url %}
+        <img class="poster" src="{{ director.profile_url }}" alt="{{ director.director_first_name }} {{ director.director_last_name }}">
+      {% else %}
+        <div class="poster placeholder">No image available</div>
+      {% endif %}
+    </div>
+    <div>
+      <h3>{{ director.director_first_name }} {{ director.director_last_name }}</h3>
+      <p>{{ director.biography or 'Biography not available.' }}</p>
+      <p><a class="link" href="{{ url_for('director_detail', director_id=director.director_id) }}">Open full director page</a></p>
+    </div>
+  </div>
+</section>
+
+<section class="panel user-panel-card">
+  <h3>Movies</h3>
+  {% for movie in movies %}
+    <article class="card">
+      <p><a class="link" href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">{{ movie.title }}</a>{% if movie.release_year %} ({{ movie.release_year }}){% endif %} · {{ movie.rating }}/5</p>
+    </article>
+  {% else %}
+    <p>No movies found for this director.</p>
+  {% endfor %}
+</section>

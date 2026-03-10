@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | {{ movie.title }}{% endblock %}
+{% block content %}
+<section class="panel detail-grid">
+  <div>
+    {% if movie.poster_url %}
+      <img class="poster" src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+    {% else %}
+      <div class="poster placeholder">No poster available</div>
+    {% endif %}
+  </div>
+  <div>
+    <div class="movie-detail-head">
+      <h1>{{ movie.title }}{% if movie.release_year %} ({{ movie.release_year }}){% endif %}</h1>
+      <div class="movie-actions-wrap">
+        <button type="button" class="movie-actions-toggle" data-movie-actions-toggle aria-label="Movie actions" title="Movie actions">⋯</button>
+        <div class="movie-actions-menu" data-movie-actions-menu>
+          <form method="post" action="{{ url_for('movie_actions', movie_id=movie.movie_id) }}">
+            <input type="hidden" name="action" value="watched">
+            <button type="submit" class="movie-actions-item">Watched</button>
+          </form>
+          <form method="post" action="{{ url_for('movie_actions', movie_id=movie.movie_id) }}">
+            <input type="hidden" name="action" value="watchlist">
+            <button type="submit" class="movie-actions-item">Add to Watchlist</button>
+          </form>
+          <button type="button" class="movie-actions-item" data-open-add-playlists>Add to Playlist</button>
+          <button type="button" class="movie-actions-item" data-open-review-log>Review / Log</button>
+        </div>
+      </div>
+    </div>
+    {% set movie_id = movie.movie_id %}{% include '_movie_heart.html' %}
+    <p><strong>Rating:</strong> {{ movie.rating }}/5</p>
+    <p>
+      <strong>Genre:</strong>
+      {% if movie.genre_id %}
+        <a class="link" href="{{ url_for('genre_detail', genre_id=movie.genre_id) }}">{{ movie.genre_name }}</a>
+      {% else %}
+        {{ movie.genre_name or 'N/A' }}
+      {% endif %}
+    </p>
+    <p>
+      <strong>Director:</strong>
+      {% if movie.director_id %}
+        <a class="link" href="{{ url_for('director_detail', director_id=movie.director_id) }}">{{ movie.director_first_name }} {{ movie.director_last_name }}</a>
+      {% else %}
+        N/A
+      {% endif %}
+    </p>
+    <p>{{ movie.description or 'No description available.' }}</p>
+  </div>
+</section>
+
+<div id="review-log-modal" class="modal" aria-hidden="true">
+  <div class="modal-content review-log-modal-content">
+    <div class="modal-head">
+      <h3>Review / Log</h3>
+      <button type="button" class="modal-close" data-close-review-log>&times;</button>
+    </div>
+    {% if user_reviews %}
+      <section class="review-history">
+        <h4>Your Reviews</h4>
+        {% for r in user_reviews %}
+          <article class="card review-history-item" data-review-card="{{ r.review_id }}">
+            {% set tokens = r.rating|rating_star_tokens %}
+            <p class="muted">
+              {% if tokens %}
+                <span class="rating-stars" aria-label="{{ r.rating }} out of 5">
+                  {% for t in tokens %}
+                    <span class="rating-star {{ t }}">{% if t == 'empty' %}☆{% else %}★{% endif %}</span>
+                  {% endfor %}
+                </span>
+              {% endif %}
+              {% if r.liked_movie %} · ♥{% endif %}
+            </p>
+            <p>{{ r.review_text or '' }}</p>
+            <p class="muted">{{ r.review_datetime|pretty_review_datetime }}</p>
+            <button
+              type="button"
+              class="review-edit-btn"
+              data-edit-review
+              data-review-id="{{ r.review_id }}"
+              data-edit-review-target="{{ r.review_id }}"
+            >Edit</button>
+            <div class="review-inline-editor" data-review-editor="{{ r.review_id }}" hidden>
+              <form method="post" action="{{ url_for('movie_actions', movie_id=movie.movie_id) }}" class="review-edit-form review-form-scope">
+                <input type="hidden" name="action" value="edit_review">
+                <input type="hidden" name="review_id" value="{{ r.review_id }}">
+                <div class="star-row" data-star-row>
+                  {% set rc = (r.rating|round(0, 'common')|int) if r.rating and r.rating > 0 else 0 %}
+                  {% for n in range(1, 6) %}
+                    <button type="button" class="star-btn {% if n <= rc %}active{% endif %}" data-star-value="{{ n }}" aria-label="Set {{ n }} stars">{% if n <= rc %}★{% else %}☆{% endif %}</button>
+                  {% endfor %}
+                </div>
+                <input type="hidden" name="rating" value="{{ r.rating if r.rating and r.rating > 0 else '' }}" data-rating-input>
+                <button
+                  type="button"
+                  class="movie-like-btn liked-toggle-btn {% if r.liked_movie %}liked{% endif %}"
+                  data-liked-toggle
+                  aria-label="Toggle like"
+                  aria-pressed="{{ 'true' if r.liked_movie else 'false' }}"
+                >
+                  <svg viewBox="0 0 24 24" class="heart-icon" aria-hidden="true">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+                  </svg>
+                </button>
+                <input type="hidden" name="liked_movie" value="{{ 1 if r.liked_movie else 0 }}" data-liked-input>
+                <textarea name="review_text" rows="4" placeholder="Edit your review">{{ r.review_text or '' }}</textarea>
+                <div class="review-inline-actions">
+                  <button class="small-btn" type="submit">Save Edit</button>
+                </div>
+              </form>
+            </div>
+          </article>
+        {% endfor %}
+      </section>
+    {% endif %}
+    <form method="post" action="{{ url_for('movie_actions', movie_id=movie.movie_id) }}" class="review-log-form review-form-scope">
+      <input type="hidden" name="action" value="review_log">
+      <div class="review-log-header">
+        {% if movie.poster_url %}
+          <img class="review-log-poster" src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+        {% else %}
+          <div class="review-log-poster review-log-poster-placeholder">No poster</div>
+        {% endif %}
+        <div class="review-log-editor-body">
+          <p class="review-log-title">{{ movie.title }}</p>
+          <div class="star-row" data-star-row>
+            {% for n in range(1, 6) %}
+              <button type="button" class="star-btn" data-star-value="{{ n }}" aria-label="Set {{ n }} stars">☆</button>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="rating" id="review-rating-input" value="" data-rating-input>
+          <button
+            type="button"
+            id="review-liked-toggle"
+            class="movie-like-btn liked-toggle-btn {% if user_liked_movie %}liked{% endif %}"
+            data-liked-toggle
+            aria-label="Toggle like"
+            aria-pressed="{{ 'true' if user_liked_movie else 'false' }}"
+          >
+            <svg viewBox="0 0 24 24" class="heart-icon" aria-hidden="true">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+            </svg>
+          </button>
+          <input type="hidden" name="liked_movie" id="review-liked-input" value="{{ 1 if user_liked_movie else 0 }}" data-liked-input>
+        </div>
+      </div>
+      <textarea id="review-text-input" name="review_text" rows="4" placeholder="Write a review (optional)"></textarea>
+      <div class="review-log-actions">
+        <button type="button" class="small-btn" id="add-review-btn" data-open-add-review>Add Review</button>
+        <button class="btn" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="add-playlists-modal" class="modal" aria-hidden="true">
+  <div class="modal-content movie-playlist-modal-content">
+    <div class="modal-head">
+      <h3>Add to Playlist</h3>
+      <button type="button" class="modal-close" data-close-add-playlists>&times;</button>
+    </div>
+    {% if user_playlists %}
+      <form method="post" action="{{ url_for('movie_actions', movie_id=movie.movie_id) }}" class="add-playlists-form">
+        <input type="hidden" name="action" value="add_to_playlists">
+        <div class="playlist-pick-list">
+          {% for playlist in user_playlists %}
+            <label class="playlist-pick-item">
+              <input type="checkbox" name="playlist_ids" value="{{ playlist.playlist_id }}">
+              <span>{{ playlist.playlist_name }}</span>
+              <span class="muted">{{ playlist.movie_count }} movies</span>
+            </label>
+          {% endfor %}
+        </div>
+        <div class="create-playlist-actions">
+          <button class="btn" type="submit">Add</button>
+        </div>
+      </form>
+    {% else %}
+      <p>No playlists yet. Create one first.</p>
+    {% endif %}
+  </div>
+</div>
+
+<section class="movie-reviews-section">
+  <h2>Reviews</h2>
+  <div class="section-divider" aria-hidden="true"></div>
+  {% for review in reviews %}
+    <article class="card">
+      <p><strong>@{{ review.username }}</strong></p>
+      {% set tokens = review.rating|rating_star_tokens %}
+      <p class="muted">
+        {% if tokens %}
+          <span class="rating-stars" aria-label="{{ review.rating }} out of 5">
+            {% for t in tokens %}
+              <span class="rating-star {{ t }}">{% if t == 'empty' %}☆{% else %}★{% endif %}</span>
+            {% endfor %}
+          </span>
+        {% endif %}
+        {% if review.liked_movie %}
+          <span class="review-liked-heart" aria-label="Liked">
+            <svg viewBox="0 0 24 24" class="heart-icon" aria-hidden="true">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+            </svg>
+          </span>
+        {% endif %}
+      </p>
+      <p>{{ review.review_text }}</p>
+      <p class="muted">{{ review.review_datetime|pretty_review_datetime }}</p>
+      {% for c in comments_by_review.get(review.review_id, []) %}
+        <p class="muted"><strong>@{{ c.username }}</strong> {{ c.comment_text }}</p>
+      {% endfor %}
+      <form method="post" action="{{ url_for('comment_review', review_id=review.review_id) }}" class="inline-form">
+        <input type="hidden" name="next" value="{{ request.full_path }}">
+        <input type="text" name="comment_text" placeholder="Write a comment...">
+        <button class="small-btn" type="submit">Comment</button>
+      </form>
+    </article>
+  {% else %}
+    <p>No reviews yet for this movie.</p>
+  {% endfor %}
+</section>
+{% endblock %}

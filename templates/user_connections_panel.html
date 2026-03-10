@@ -1,0 +1,33 @@
+<section class="user-panel-card">
+  <h3>@{{ profile_user.username }} {{ section_title }}</h3>
+  <p>
+    <a
+      class="link"
+      href="{{ url_for('user_profile', username=profile_user.username) }}"
+      data-open-user-panel
+      data-panel-url="{{ url_for('user_profile_panel', username=profile_user.username) }}"
+    >Back to profile</a>
+  </p>
+  {% for item in items %}
+    <article class="connection-row">
+      <a
+        class="connection-link"
+        href="{{ url_for('user_profile', username=item.username) }}"
+        data-open-user-panel
+        data-panel-url="{{ url_for('user_profile_panel', username=item.username) }}"
+      >
+        {% if item.profile_picture_url %}
+          <img class="connection-avatar" src="{{ item.profile_picture_url }}" alt="{{ item.username }} profile picture">
+        {% else %}
+          <span class="connection-avatar connection-avatar-fallback">{{ item.username[:1]|upper }}</span>
+        {% endif %}
+        <span class="connection-text">
+          <span class="connection-name">{{ item.name }}</span>
+          <span class="connection-username">@{{ item.username }}</span>
+        </span>
+      </a>
+    </article>
+  {% else %}
+    <p>{{ empty_message }}</p>
+  {% endfor %}
+</section>

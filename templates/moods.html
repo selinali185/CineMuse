@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Moods{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>Mood-Based Discovery</h1>
+  <div class="grid mood-grid">
+    {% for mood, genre in moods.items() %}
+      <a class="card mood" href="{{ url_for('recommendations', mood=mood) }}">
+        <strong>{{ mood|capitalize }}</strong>
+        <p>{{ genre }}</p>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

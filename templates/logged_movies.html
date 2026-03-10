@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | {{ title }}{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>{{ title }}</h1>
+  {% for item in items %}
+    <article class="card">
+      <p><a class="link" href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">{{ item.title }}</a> {% set movie_id = item.movie_id %}{% include '_movie_heart.html' %}</p>
+      <p class="muted">Times logged: {{ item.times_logged }} · Last logged: {{ item.movie_log_datetime|pretty_review_datetime }}</p>
+    </article>
+  {% else %}
+    <p>No logged movies found.</p>
+  {% endfor %}
+</section>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | {{ genre.genre_name }}{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>{{ genre.genre_name }}</h1>
+  <p class="muted">Movies in this genre</p>
+</section>
+
+<section class="panel">
+  {% for movie in movies %}
+    <article class="card">
+      <p>
+        <a class="link" href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">{{ movie.title }}</a> {% set movie_id = movie.movie_id %}{% include '_movie_heart.html' %}
+        {% if movie.release_year %}({{ movie.release_year }}){% endif %}
+        · {{ movie.rating }}/5
+        {% if movie.director_id %}
+          · Director:
+          <a class="link" href="{{ url_for('director_detail', director_id=movie.director_id) }}">{{ movie.director_first_name }} {{ movie.director_last_name }}</a>
+        {% endif %}
+      </p>
+    </article>
+  {% else %}
+    <p>No movies found in this genre.</p>
+  {% endfor %}
+</section>
+{% endblock %}

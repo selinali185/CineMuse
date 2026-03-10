@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Friends Playlists{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>Playlists from Friends</h1>
+  {% if items %}
+    <div class="friend-playlists-grid">
+      {% for playlist in items %}
+        <article class="friend-playlist-card">
+          <a class="friend-playlist-cover-link" href="{{ url_for('playlist_detail', playlist_id=playlist.playlist_id) }}">
+            {% if playlist.cover_image_url %}
+              <img class="friend-playlist-cover" src="{{ playlist.cover_image_url }}" alt="{{ playlist.playlist_name }} cover">
+            {% else %}
+              <div class="friend-playlist-cover friend-playlist-cover-placeholder">No cover</div>
+            {% endif %}
+          </a>
+          <p class="friend-playlist-title">
+            <a href="{{ url_for('playlist_detail', playlist_id=playlist.playlist_id) }}">{{ playlist.playlist_name }}</a>
+          </p>
+          <p class="friend-playlist-owner">by @{{ playlist.username }}</p>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No playlists from mutual friends yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

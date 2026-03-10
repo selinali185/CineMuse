@@ -1,0 +1,184 @@
+<section class="panel user-panel-card">
+  <div class="profile-header">
+    {% if profile_user.profile_picture_url %}
+      <img class="profile-avatar" src="{{ profile_user.profile_picture_url }}" alt="{{ profile_user.username }} profile picture">
+    {% else %}
+      <div class="profile-avatar placeholder-avatar">{{ profile_user.username[:1]|upper }}</div>
+    {% endif %}
+    <div class="profile-meta">
+      <h2>{{ profile_user.name }} <span class="muted">@{{ profile_user.username }}</span></h2>
+      <p>{{ profile_user.biography or 'No bio yet.' }}</p>
+      <p class="profile-links">
+        <a
+          class="link"
+          href="{{ url_for('user_followers', username=profile_user.username) }}"
+          data-open-user-panel
+          data-panel-url="{{ url_for('user_followers_panel', username=profile_user.username) }}"
+        >Followers</a>: <span data-follower-count>{{ follower_count }}</span>
+        <a
+          class="link"
+          href="{{ url_for('user_following', username=profile_user.username) }}"
+          data-open-user-panel
+          data-panel-url="{{ url_for('user_following_panel', username=profile_user.username) }}"
+        >Following</a>: {{ following_count }}
+      </p>
+      <div class="user-panel-header-actions">
+        {% if can_follow %}
+          <button
+            type="button"
+            class="user-panel-follow-btn {% if is_following %}is-following{% endif %}"
+            data-follow-toggle
+            data-follow-url="{{ url_for('toggle_follow_user', username=profile_user.username) }}"
+            data-following-label="Unfollow"
+            data-unfollowed-label="Follow"
+          >
+            {{ 'Unfollow' if is_following else 'Follow' }}
+          </button>
+        {% endif %}
+        <a class="link" href="{{ url_for('user_profile', username=profile_user.username) }}">Open full profile</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="profile-stack user-panel-stack">
+  <section class="panel user-panel-card">
+    <h3>Favourite Films</h3>
+    <div class="favorite-boxes">
+      {% for slot, favorite in favorite_slots %}
+        <article class="favorite-box">
+          {% if favorite %}
+            <a class="favorite-link" href="{{ url_for('movie_detail', movie_id=favorite.movie_id) }}">
+              {% if favorite.poster_url %}
+                <img class="favorite-poster" src="{{ favorite.poster_url }}" alt="{{ favorite.title }} poster">
+              {% else %}
+                <div class="favorite-poster favorite-poster-placeholder">No poster</div>
+              {% endif %}
+            </a>
+            <p class="favorite-title">
+              <a href="{{ url_for('movie_detail', movie_id=favorite.movie_id) }}">{{ favorite.title }}</a>
+              {% set movie_id = favorite.movie_id %}{% include '_movie_heart.html' %}
+            </p>
+          {% else %}
+            <div class="favorite-plus-btn" aria-hidden="true">+</div>
+            <p class="favorite-title muted">No favourite set</p>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel user-panel-card">
+    <h3>Recent Activity</h3>
+    {% if recent_activity %}
+      <div class="favorite-boxes recent-activity-boxes">
+        {% for item in recent_activity %}
+          <article class="favorite-box recent-activity-box">
+            <a class="favorite-link" href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">
+              {% if item.poster_url %}
+                <img class="favorite-poster" src="{{ item.poster_url }}" alt="{{ item.title }} poster">
+              {% else %}
+                <div class="favorite-poster favorite-poster-placeholder">No poster</div>
+              {% endif %}
+            </a>
+            <p class="favorite-title">
+              <a href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">{{ item.title }}</a>
+              {% if item.liked_movie %}
+                <span class="review-liked-heart" aria-label="Liked">
+                  <svg viewBox="0 0 24 24" class="heart-icon" aria-hidden="true">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+                  </svg>
+                </span>
+              {% endif %}
+            </p>
+            {% set tokens = item.rating|rating_star_tokens %}
+            {% if tokens %}
+              <p class="recent-activity-stars">
+                <span class="rating-stars" aria-label="{{ item.rating }} out of 5">
+                  {% for t in tokens %}
+                    <span class="rating-star {{ t }}">{% if t == 'empty' %}☆{% else %}★{% endif %}</span>
+                  {% endfor %}
+                </span>
+              </p>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>No activity yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel user-panel-card">
+    <h3>Watchlist</h3>
+    {% if watchlist_items %}
+      <div class="favorite-boxes watchlist-boxes">
+        {% for item in watchlist_items %}
+          <article class="favorite-box watchlist-box">
+            <a class="favorite-link" href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">
+              {% if item.poster_url %}
+                <img class="favorite-poster" src="{{ item.poster_url }}" alt="{{ item.title }} poster">
+              {% else %}
+                <div class="favorite-poster favorite-poster-placeholder">No poster</div>
+              {% endif %}
+            </a>
+            <p class="favorite-title">
+              <a href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">{{ item.title }}</a>
+              {% set movie_id = item.movie_id %}{% include '_movie_heart.html' %}
+            </p>
+            <p class="muted watchlist-status">{{ item.status }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>Empty watchlist.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel user-panel-card">
+    <h3>Playlists</h3>
+    {% if playlists %}
+      <div class="profile-playlist-grid">
+        {% for item in playlists %}
+          <article class="profile-playlist-card">
+            <a class="favorite-link" href="{{ url_for('playlist_detail', playlist_id=item.playlist_id) }}">
+              {% if item.cover_image_url %}
+                <img class="profile-playlist-cover" src="{{ item.cover_image_url }}" alt="{{ item.playlist_name }} cover">
+              {% else %}
+                <div class="profile-playlist-cover profile-playlist-cover-placeholder">No cover</div>
+              {% endif %}
+            </a>
+            <p class="profile-playlist-meta">
+              <a class="link" href="{{ url_for('playlist_detail', playlist_id=item.playlist_id) }}">{{ item.playlist_name }}</a>
+              <span class="muted">{{ item.movie_count }} movies</span>
+            </p>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>No playlists yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel user-panel-card">
+    <h3>Liked Movies</h3>
+    {% if liked_movies %}
+      <div class="favorite-boxes liked-movie-boxes">
+        {% for item in liked_movies %}
+          <article class="favorite-box liked-movie-box">
+            <a class="favorite-link" href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">
+              {% if item.poster_url %}
+                <img class="favorite-poster" src="{{ item.poster_url }}" alt="{{ item.title }} poster">
+              {% else %}
+                <div class="favorite-poster favorite-poster-placeholder">No poster</div>
+              {% endif %}
+            </a>
+            <p class="favorite-title"><a href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">{{ item.title }}</a></p>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>No liked movies yet.</p>
+    {% endif %}
+  </section>
+</div>

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Watchlist{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>Watchlist</h1>
+  <form method="post" class="inline-form">
+    <select name="movie_id" required>
+      <option value="">Movie</option>
+      {% for movie in movies %}<option value="{{ movie.movie_id }}">{{ movie.title }}</option>{% endfor %}
+    </select>
+    <select name="status">
+      <option value="planned">Planned</option>
+      <option value="watching">Watching</option>
+      <option value="watched">Watched</option>
+    </select>
+    <button class="btn" type="submit">Update</button>
+  </form>
+  <div class="list">
+    {% for item in items %}<p><a class="link" href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">{{ item.title }}</a> {% set movie_id = item.movie_id %}{% include '_movie_heart.html' %} · {{ item.status }}</p>{% else %}<p>No watchlist entries yet.</p>{% endfor %}
+  </div>
+</section>
+{% endblock %}

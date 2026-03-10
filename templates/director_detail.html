@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Director{% endblock %}
+{% block content %}
+<section class="panel detail-grid">
+  <div>
+    {% if director.profile_url %}
+      <img class="poster" src="{{ director.profile_url }}" alt="{{ director.director_first_name }} {{ director.director_last_name }}">
+    {% else %}
+      <div class="poster placeholder">No image available</div>
+    {% endif %}
+  </div>
+  <div>
+    <h1>{{ director.director_first_name }} {{ director.director_last_name }}</h1>
+    <p>{{ director.biography or 'Biography not available.' }}</p>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Movies</h2>
+  {% for movie in movies %}
+    <article class="card">
+      <p><a class="link" href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">{{ movie.title }}</a> {% set movie_id = movie.movie_id %}{% include '_movie_heart.html' %} {% if movie.release_year %}({{ movie.release_year }}){% endif %} · {{ movie.rating }}/5</p>
+    </article>
+  {% else %}
+    <p>No movies found for this director.</p>
+  {% endfor %}
+</section>
+{% endblock %}

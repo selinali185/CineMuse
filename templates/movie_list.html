@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Movies{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>Movie List</h1>
+  <p class="muted">Use <code>/sync/tmdb?pages=10</code> to import more TMDB popular movies. Total local movies: {{ total }}.</p>
+</section>
+
+<section class="panel">
+  <div class="movie-grid">
+    {% for movie in movies %}
+      <article class="card movie-tile">
+        {% if movie.poster_url %}
+          <img class="poster" src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+        {% else %}
+          <div class="poster placeholder">No poster</div>
+        {% endif %}
+        <h3><a class="link" href="{{ url_for('movie_page', movie_id=movie.movie_id) }}">{{ movie.title }}</a> {% set movie_id = movie.movie_id %}{% include '_movie_heart.html' %}</h3>
+        <p class="muted">{{ movie.release_year or 'N/A' }} · {{ movie.rating }}/5</p>
+      </article>
+    {% else %}
+      <p>No movies yet. Trigger a TMDB sync first.</p>
+    {% endfor %}
+  </div>
+</section>
+<section class="panel pager">
+  {% if page > 1 %}
+    <a class="btn" href="{{ url_for('movies_page', page=page-1) }}">Previous</a>
+  {% endif %}
+  {% if has_next %}
+    <a class="btn" href="{{ url_for('movies_page', page=page+1) }}">Next</a>
+  {% endif %}
+</section>
+{% endblock %}

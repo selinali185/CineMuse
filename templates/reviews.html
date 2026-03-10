@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Reviews{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>Reviews</h1>
+  <form method="post" class="form">
+    <select name="movie_id" required>
+      <option value="">Select Movie</option>
+      {% for movie in movies %}<option value="{{ movie.movie_id }}">{{ movie.title }} ({{ movie.release_year }})</option>{% endfor %}
+    </select>
+    <input name="rating" type="number" step="0.5" min="0" max="5" placeholder="Rating (0-5)" required>
+    <textarea name="review_text" rows="3" placeholder="Write your review..."></textarea>
+    <button class="btn" type="submit">Post Review</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Community Reviews</h2>
+  {% for review in reviews %}
+    <article class="card">
+      <p><strong>@{{ review.username }}</strong> on <strong><a class="link" href="{{ url_for('movie_detail', movie_id=review.movie_id) }}">{{ review.title }}</a></strong> {% set movie_id = review.movie_id %}{% include '_movie_heart.html' %} · {{ review.rating }}/5</p>
+      <p>{{ review.review_text or '' }}</p>
+      <p class="muted">Likes: {{ review.like_count }}</p>
+      <form method="post" action="{{ url_for('like_review', review_id=review.review_id) }}"><button class="small-btn" type="submit">Like</button></form>
+      {% if review.username == session_user.username %}
+      <form method="post" action="{{ url_for('delete_review', review_id=review.review_id) }}"><button class="small-btn danger" type="submit">Delete</button></form>
+      {% endif %}
+    </article>
+  {% endfor %}
+</section>
+{% endblock %}

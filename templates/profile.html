@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Profile{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="profile-header">
+    {% if user.profile_picture_url %}
+      <img class="profile-avatar" src="{{ user.profile_picture_url }}" alt="{{ user.username }} profile picture">
+    {% else %}
+      <div class="profile-avatar placeholder-avatar">{{ user.username[:1]|upper }}</div>
+    {% endif %}
+    <div class="profile-meta">
+      <h1>{{ user.name }} <span class="muted">@{{ user.username }}</span></h1>
+      <p>{{ user.biography or 'No bio yet.' }}</p>
+      <p class="profile-links">
+        <a class="link" href="{{ url_for('followers') }}">Followers</a>: {{ follower_count }}
+        <a class="link" href="{{ url_for('following') }}">Following</a>: {{ following_count }}
+      </p>
+    </div>
+  </div>
+</section>
+
+<div class="profile-stack">
+  <section class="panel">
+    <h2>Favourite Films</h2>
+    <div class="favorite-boxes">
+      {% for slot, favorite in favorite_slots %}
+        <div class="favorite-box">
+          {% if favorite %}
+            <a class="favorite-link" href="{{ url_for('movie_detail', movie_id=favorite.movie_id) }}">
+              {% if favorite.poster_url %}
+                <img class="favorite-poster" src="{{ favorite.poster_url }}" alt="{{ favorite.title }} poster">
+              {% else %}
+                <div class="favorite-poster favorite-poster-placeholder">No poster</div>
+              {% endif %}
+            </a>
+            <p class="favorite-title">
+              <a href="{{ url_for('movie_detail', movie_id=favorite.movie_id) }}">{{ favorite.title }}</a>
+              {% set movie_id = favorite.movie_id %}{% include '_movie_heart.html' %}
+            </p>
+            <button class="favorite-change-link" type="button" data-open-favorite-modal data-slot="{{ slot }}">change</button>
+          {% else %}
+            <button class="favorite-plus-btn" type="button" data-open-favorite-modal data-slot="{{ slot }}" aria-label="Add favourite movie">+</button>
+            <p class="favorite-title">Add Favourite</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="panel">
+    <h2>Recent Activity</h2>
+    {% if recent_activity %}
+      <div class="favorite-boxes recent-activity-boxes">
+        {% for item in recent_activity %}
+          <article class="favorite-box recent-activity-box">
+            <a class="favorite-link" href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">
+              {% if item.poster_url %}
+                <img class="favorite-poster" src="{{ item.poster_url }}" alt="{{ item.title }} poster">
+              {% else %}
+                <div class="favorite-poster favorite-poster-placeholder">No poster</div>
+              {% endif %}
+            </a>
+            <p class="favorite-title">
+              <a href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">{{ item.title }}</a>
+              {% if item.liked_movie %}
+                <span class="review-liked-heart" aria-label="Liked">
+                  <svg viewBox="0 0 24 24" class="heart-icon" aria-hidden="true">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+                  </svg>
+                </span>
+              {% endif %}
+            </p>
+            {% set tokens = item.rating|rating_star_tokens %}
+            <p class="recent-activity-stars">
+              {% if tokens %}
+                <span class="rating-stars" aria-label="{{ item.rating }} out of 5">
+                  {% for t in tokens %}
+                    <span class="rating-star {{ t }}">{% if t == 'empty' %}☆{% else %}★{% endif %}</span>
+                  {% endfor %}
+                </span>
+              {% endif %}
+            </p>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>No activity yet.</p>
+    {% endif %}
+    <a class="link profile-see-more" href="{{ url_for('activity') }}">see more</a>
+  </section>
+  <section class="panel">
+    <h2>Watchlist</h2>
+    {% if watchlist_items %}
+      <div class="favorite-boxes watchlist-boxes">
+        {% for item in watchlist_items %}
+          <div class="favorite-box watchlist-box">
+            <a class="favorite-link" href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">
+              {% if item.poster_url %}
+                <img class="favorite-poster" src="{{ item.poster_url }}" alt="{{ item.title }} poster">
+              {% else %}
+                <div class="favorite-poster favorite-poster-placeholder">No poster</div>
+              {% endif %}
+            </a>
+            <p class="favorite-title">
+              <a href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">{{ item.title }}</a>
+              {% set movie_id = item.movie_id %}{% include '_movie_heart.html' %}
+            </p>
+            <p class="muted watchlist-status">{{ item.status }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>Empty watchlist.</p>
+    {% endif %}
+    <a class="link profile-see-more" href="{{ url_for('watchlist') }}">see more</a>
+  </section>
+  <section class="panel">
+    <h2>Playlists</h2>
+    {% if playlists %}
+      <div class="profile-playlist-grid">
+        {% for item in playlists %}
+          <article class="profile-playlist-card">
+            <a class="favorite-link" href="{{ url_for('playlist_detail', playlist_id=item.playlist_id) }}">
+              {% if item.cover_image_url %}
+                <img class="profile-playlist-cover" src="{{ item.cover_image_url }}" alt="{{ item.playlist_name }} cover">
+              {% else %}
+                <div class="profile-playlist-cover profile-playlist-cover-placeholder">No cover</div>
+              {% endif %}
+            </a>
+            <p class="profile-playlist-meta">
+              <a class="link" href="{{ url_for('playlist_detail', playlist_id=item.playlist_id) }}">{{ item.playlist_name }}</a>
+              <span class="muted">{{ item.movie_count }} movies</span>
+            </p>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="playlist-empty-state">
+        <a class="playlist-add-box" href="{{ url_for('create_playlist') }}" aria-label="Add playlist">+</a>
+        <p class="playlist-add-text">add playlist</p>
+      </div>
+    {% endif %}
+    <a class="link profile-see-more" href="{{ url_for('playlists') }}">see more</a>
+  </section>
+  <section class="panel">
+    <h2>Liked Movies</h2>
+    {% if liked_movies %}
+      <div class="favorite-boxes liked-movie-boxes">
+        {% for item in liked_movies %}
+          <article class="favorite-box liked-movie-box">
+            <a class="favorite-link" href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">
+              {% if item.poster_url %}
+                <img class="favorite-poster" src="{{ item.poster_url }}" alt="{{ item.title }} poster">
+              {% else %}
+                <div class="favorite-poster favorite-poster-placeholder">No poster</div>
+              {% endif %}
+            </a>
+            <p class="favorite-title">
+              <a href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">{{ item.title }}</a>
+            </p>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>No liked movies yet.</p>
+    {% endif %}
+    <a class="link profile-see-more" href="{{ url_for('likes') }}">see more</a>
+  </section>
+</div>
+
+<section class="profile-stats-text">
+  <h2>Stats</h2>
+  <p><a class="link" href="{{ url_for('logged_movies') }}">Total films watched</a>: {{ stats.total_watched }}</p>
+  <p><a class="link" href="{{ url_for('logged_movies_current_year') }}">Films watched this year</a>: {{ stats.watched_this_year }}</p>
+</section>
+
+<div id="favorite-modal" class="modal" aria-hidden="true">
+  <div class="modal-content">
+    <div class="modal-head">
+      <h3>Select Favourite Movie</h3>
+      <button type="button" class="modal-close" data-close-favorite-modal>&times;</button>
+    </div>
+    <input id="favorite-search" type="text" placeholder="Search movie title...">
+    <form method="post" action="{{ url_for('update_profile_favorites') }}" id="favorite-form">
+      <input type="hidden" name="slot" id="favorite-slot-input" value="">
+      <input type="hidden" name="movie_id" id="favorite-movie-id-input" value="">
+      <div id="favorite-movie-list" class="favorite-movie-list">
+        {% for movie in favorite_movie_choices %}
+          <button type="button" class="movie-choice" data-movie-id="{{ movie.movie_id }}" data-title="{{ movie.title|lower }}">
+            {% if movie.poster_url %}
+              <img class="movie-choice-poster" src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+            {% else %}
+              <div class="movie-choice-poster movie-choice-poster-placeholder">No poster</div>
+            {% endif %}
+            <span class="movie-choice-title">{{ movie.title }}</span>
+          </button>
+        {% endfor %}
+      </div>
+      <div class="modal-actions">
+        <button class="btn" type="submit" id="favorite-add-btn" disabled>Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

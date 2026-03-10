@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Mail{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>Mail</h1>
+  <div class="mail-tabs" role="tablist" aria-label="Mail sections">
+    <a
+      class="mail-tab {% if section == 'notifications' %}mail-tab-active{% endif %}"
+      href="{{ url_for('mail', section='notifications') }}"
+      role="tab"
+      aria-selected="{{ 'true' if section == 'notifications' else 'false' }}"
+    >Notifications</a>
+    <a
+      class="mail-tab {% if section == 'news' %}mail-tab-active{% endif %}"
+      href="{{ url_for('mail', section='news') }}"
+      role="tab"
+      aria-selected="{{ 'true' if section == 'news' else 'false' }}"
+    >News</a>
+  </div>
+
+  {% if section == 'notifications' %}
+    {% for item in notifications %}
+      <article class="card">
+        <p><strong>{{ item.notification_type|capitalize }}</strong></p>
+        <p>{{ item.notification_text }}</p>
+        <p class="muted">{{ item.created_datetime|pretty_review_datetime }}</p>
+      </article>
+    {% else %}
+      <p>No notifications yet.</p>
+    {% endfor %}
+  {% else %}
+    {% for item in news_items %}
+      <article class="card">
+        <p><strong>{{ item.news_name }}</strong></p>
+        <p>{{ item.news_source }}</p>
+        {% if item.news_url %}<a class="link" href="{{ item.news_url }}" target="_blank" rel="noreferrer">Read article</a>{% endif %}
+      </article>
+    {% else %}
+      <p>No news found.</p>
+    {% endfor %}
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Settings{% endblock %}
+{% block content %}
+<section class="panel narrow settings-panel">
+  <h1>Settings</h1>
+  <form method="post" class="form" enctype="multipart/form-data">
+    <h2>Account</h2>
+    <label for="settings-name">Name</label>
+    <input id="settings-name" name="name" value="{{ user.name }}" required>
+
+    <label for="settings-username">Username</label>
+    <input id="settings-username" name="username" value="{{ user.username }}" required>
+
+    <label for="settings-email">Email</label>
+    <input id="settings-email" type="email" name="email" value="{{ user.email }}" required>
+
+    <label for="settings-password">Password</label>
+    <input id="settings-password" type="password" name="password" placeholder="Leave blank to keep current password">
+
+    <label for="settings-bio">Biography</label>
+    <textarea id="settings-bio" name="biography" rows="4" placeholder="Biography">{{ user.biography }}</textarea>
+
+    <h3>Profile Picture</h3>
+    {% if user.profile_picture_url %}
+      <img class="avatar-preview" src="{{ user.profile_picture_url }}" alt="Current profile picture">
+    {% endif %}
+    <input id="settings-picture" type="file" name="profile_picture" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif">
+
+    <h2>Notifications</h2>
+    <label class="inline"><input type="checkbox" name="receive_follow_notifications" {% if setting and setting.receive_follow_notifications %}checked{% endif %}> Notify me when someone follows me</label>
+    <label class="inline"><input type="checkbox" name="receive_like_notifications" {% if setting and setting.receive_like_notifications %}checked{% endif %}> Notify me when someone likes my review</label>
+    <label class="inline"><input type="checkbox" name="receive_news" {% if setting and setting.receive_news %}checked{% endif %}> Receive news updates</label>
+
+    <button class="btn" type="submit">Save Settings</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Inbox{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>Inbox & Notifications</h1>
+  {% for item in items %}
+    <article class="card">
+      <p><strong>{{ item.notification_type|capitalize }}</strong></p>
+      <p>{{ item.notification_text }}</p>
+      <p class="muted">{{ item.created_datetime|pretty_review_datetime }}</p>
+    </article>
+  {% else %}
+    <p>No notifications yet.</p>
+  {% endfor %}
+</section>
+{% endblock %}

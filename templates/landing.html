@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Welcome{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1><span class="logo-cine">Cine</span><span class="logo-muse">Muse</span></h1>
+  <p>log your cinematic journey<br>one film at a time</p>
+  <a class="btn" href="{{ url_for('signup', combined=1) }}">GET STARTED</a>
+</section>
+{% endblock %}

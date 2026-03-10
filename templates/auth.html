@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | {{ 'Sign Up' if mode == 'signup' else 'Login' }}{% endblock %}
+{% block content %}
+<div class="panel auth-grid">
+  {% if mode == 'signup' %}
+    <section>
+      <h2>Sign Up</h2>
+      <form method="post" action="{{ url_for('signup', combined=1) if show_login_followup else url_for('signup') }}" class="form">
+        {% if show_login_followup %}
+          <input type="hidden" name="combined" value="1">
+        {% endif %}
+        <input name="name" placeholder="Name" required>
+        <input name="username" placeholder="Username" required>
+        <input name="email" type="email" placeholder="Email" required>
+        <input name="password" type="password" placeholder="Password" required>
+        <label class="inline"><input type="checkbox" name="receive_news"> Receive movie news updates</label>
+        <button class="btn" type="submit">Sign Up</button>
+      </form>
+    </section>
+    {% if show_login_followup %}
+    <section class="auth-login-followup">
+      <h2 class="auth-switch-copy">Already Have An Account? <a href="{{ url_for('login') }}">Log In.</a></h2>
+      <form method="post" action="{{ url_for('login') }}" class="form">
+        <input name="username" placeholder="Username" required>
+        <input name="password" type="password" placeholder="Password" required>
+        <button class="btn" type="submit">Login</button>
+      </form>
+    </section>
+    {% endif %}
+  {% else %}
+    <section>
+      <h2>Login</h2>
+      <form method="post" action="{{ url_for('login') }}" class="form">
+        <input name="username" placeholder="Username" required>
+        <input name="password" type="password" placeholder="Password" required>
+        <button class="btn" type="submit">Login</button>
+      </form>
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

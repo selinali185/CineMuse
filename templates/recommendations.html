@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Recommendations{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>Recommendations</h1>
+  <form method="get" class="inline-form">
+    <input name="query" placeholder="Movie title" value="{{ query }}">
+    <input name="genre" placeholder="Genre" value="{{ selected_genre }}">
+    <button class="btn" type="submit">Find</button>
+  </form>
+  {% if mood %}<p class="muted">Mood selected: {{ mood }}</p>{% endif %}
+  {% for movie in movies %}
+    <article class="card">
+      <p><strong><a class="link" href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">{{ movie.title }}</a></strong> {% set movie_id = movie.movie_id %}{% include '_movie_heart.html' %} ({{ movie.release_year }})</p>
+      <p>
+        {% if movie.genre_id %}
+          <a class="link" href="{{ url_for('genre_detail', genre_id=movie.genre_id) }}">{{ movie.genre_name }}</a>
+        {% else %}
+          {{ movie.genre_name }}
+        {% endif %}
+        · {{ movie.rating }}/5
+      </p>
+    </article>
+  {% else %}
+    <p>No recommendations found.</p>
+  {% endfor %}
+</section>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Likes{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>Liked Movies</h1>
+  {% if items %}
+    <div class="liked-grid-three">
+      {% for item in items %}
+        <article class="liked-grid-card">
+          <a class="favorite-link" href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">
+            {% if item.poster_url %}
+              <img class="favorite-poster" src="{{ item.poster_url }}" alt="{{ item.title }} poster">
+            {% else %}
+              <div class="favorite-poster favorite-poster-placeholder">No poster</div>
+            {% endif %}
+          </a>
+          <p class="favorite-title">
+            <a href="{{ url_for('movie_detail', movie_id=item.movie_id) }}">{{ item.title }}</a>
+          </p>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No likes yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

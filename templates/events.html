@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}CineMuse | Events{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>Movie News & Events</h1>
+  <form method="get" class="inline-form">
+    <input name="source" placeholder="Filter by source" value="{{ source }}">
+    <button class="btn" type="submit">Filter</button>
+  </form>
+  {% for item in items %}
+    <article class="card">
+      <p><strong>{{ item.news_name }}</strong></p>
+      <p>{{ item.news_source }} · {{ item.news_datetime|pretty_review_datetime }}</p>
+      {% if item.news_url %}<a class="link" href="{{ item.news_url }}" target="_blank" rel="noreferrer">Read article</a>{% endif %}
+    </article>
+  {% else %}
+    <p>No event news found.</p>
+  {% endfor %}
+</section>
+{% endblock %}
