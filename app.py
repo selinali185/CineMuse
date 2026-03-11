@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import os
 import re
 import sqlite3
@@ -7,11 +8,10 @@ import uuid
 from datetime import datetime, timezone
 from functools import wraps
 from pathlib import Path
+from typing import Iterable
 
 import requests
 from difflib import SequenceMatcher
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from flask import Flask, flash, g, jsonify, redirect, render_template, request, session, url_for
@@ -23,6 +23,8 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "cinemuse-dev-secret")
 app.config["DATABASE"] = os.path.join(app.root_path, "cinemuse.db")
 app.config["TMDB_API_BASE"] = "https://api.themoviedb.org/3"
 app.config["TMDB_IMAGE_BASE"] = "https://image.tmdb.org/t/p/w500"
+app.config["NEWSAPI_BASE"] = "https://newsapi.org/v2"
+DEFAULT_NEWS_TOPICS = ["movies", "directors", "actors", "film festivals", "film events"]
 app.config["PROFILE_UPLOAD_DIR"] = os.path.join(app.root_path, "static", "uploads", "profiles")
 app.config["PROFILE_UPLOAD_URL_PREFIX"] = "/static/uploads/profiles/"
 app.config["PLAYLIST_UPLOAD_DIR"] = os.path.join(app.root_path, "static", "uploads", "playlists")
@@ -253,6 +255,111 @@ def tmdb_request(path: str, params: dict[str, str | int] | None = None) -> dict:
     )
     response.raise_for_status()
     return response.json()
+
+
+def newsapi_key() -> str:
+    return os.environ.get("NEWSAPI_KEY", "").strip()
+
+
+def is_newsapi_configured() -> bool:
+    return bool(newsapi_key())
+
+
+def newsapi_request(query: str, page: int = 1, page_size: int = 20) -> dict:
+    if not is_newsapi_configured():
+        raise RuntimeError("NEWSAPI_KEY is not set.")
+    headers = {"Authorization": newsapi_key()}
+    params = {"q": query, "page": page, "pageSize": page_size, "language": "en", "sortBy": "publishedAt"}
+    response = requests.get(f"{app.config['NEWSAPI_BASE']}/everything", params=params, headers=headers, timeout=20)
+    response.raise_for_status()
+    return response.json()
+
+
+def normalize_author_name(byline: str | None) -> tuple[str, str]:
+    if not byline:
+        return "", ""
+    parts = byline.strip().split(" ", 1)
+    if len(parts) == 1:
+        return parts[0], ""
+    return parts[0], parts[1]
+
+
+def upsert_news_item(
+    conn: sqlite3.Connection,
+    *,
+    url: str,
+    title: str,
+    summary: str,
+    image_url: str | None,
+    published: str,
+    source_name: str,
+    author_first: str,
+    author_last: str,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO news (
+            news_name, news_author_first_name, news_author_last_name,
+            news_source, news_url, news_datetime, news_summary, news_image_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(news_url) DO UPDATE SET
+            news_name = excluded.news_name,
+            news_summary = excluded.news_summary,
+            news_image_url = excluded.news_image_url,
+            news_datetime = excluded.news_datetime
+        """,
+        (
+            title,
+            author_first,
+            author_last,
+            source_name,
+            url,
+            published,
+            summary,
+            image_url,
+        ),
+    )
+
+
+def run_newsapi_sync(queries: Iterable[str], pages: int, page_size: int) -> dict[str, int]:
+    if not is_newsapi_configured():
+        raise RuntimeError("NEWSAPI_KEY missing")
+    totals: dict[str, int] = {}
+    with open_sync_connection() as conn:
+        for query in queries:
+            count = 0
+            for page in range(1, pages + 1):
+                payload = newsapi_request(query, page=page, page_size=page_size)
+                articles = payload.get("articles") or []
+                if not articles:
+                    break
+                for article in articles:
+                    url = article.get("url")
+                    if not url:
+                        continue
+                    title = article.get("title") or "News"
+                    summary = article.get("description") or ""
+                    image_url = article.get("urlToImage")
+                    published = article.get("publishedAt") or datetime.utcnow().isoformat(
+                        timespec="seconds"
+                    )
+                    author_first, author_last = normalize_author_name(article.get("author"))
+                    upsert_news_item(
+                        conn,
+                        url=url,
+                        title=title,
+                        summary=summary,
+                        image_url=image_url,
+                        published=published,
+                        source_name=article.get("source", {}).get("name", "NewsAPI"),
+                        author_first=author_first,
+                        author_last=author_last,
+                    )
+                    count += 1
+                if len(articles) < page_size:
+                    break
+            totals[query] = count
+    return totals
 
 
 def fetch_tmdb_popular_movies(api_key: str, page: int = 1) -> dict:
@@ -930,6 +1037,9 @@ def init_db() -> None:
     )
     get_db().execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_directors_tmdb_person_id ON directors(tmdb_person_id)"
+    )
+    get_db().execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_news_url ON news(news_url)"
     )
     get_db().commit()
     seed_data()
@@ -3024,6 +3134,31 @@ def sync_tmdb():
     return redirect(url_for("home"))
 
 
+@app.route("/sync/news")
+@login_required
+def sync_news():
+    if not is_newsapi_configured():
+        flash("NewsAPI key missing. Set NEWSAPI_KEY in .env.", "error")
+        return redirect(url_for("home"))
+
+    pages = request.args.get("pages", default=5, type=int)
+    page_size = request.args.get("page_size", default=30, type=int)
+    topics = request.args.getlist("query")
+    if not topics:
+        topics = DEFAULT_NEWS_TOPICS
+
+    try:
+        counts = run_newsapi_sync(topics, pages, page_size)
+        total = sum(counts.values())
+        if total:
+            flash(f"News sync completed: {total} articles.", "success")
+        else:
+            flash("News sync completed, no new articles found.", "info")
+    except Exception as exc:
+        flash(f"News sync failed: {exc}", "error")
+    return redirect(url_for("home"))
+
+
 @app.route("/playlists", methods=["GET", "POST"])
 @login_required
 def playlists():
@@ -3366,11 +3501,11 @@ def search_suggest():
         """,
         (needle, needle),
     ).fetchall()
-
     return jsonify(
         {
             "movies": [
                 {
+
                     "label": f"{row['title']} ({row['release_year']})"
                     if row["release_year"]
                     else row["title"],

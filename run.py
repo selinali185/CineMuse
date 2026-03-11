@@ -1,8 +1,6 @@
 import os
 from pathlib import Path
 
-from app import app
-
 
 def load_env_file() -> None:
     env_path = Path(__file__).with_name(".env")
@@ -29,6 +27,8 @@ def get_run_config() -> tuple[str, int, bool]:
 
 def main() -> None:
     load_env_file()
+    from app import app
+
     host, port, debug = get_run_config()
     app.run(host=host, port=port, debug=debug)
 
