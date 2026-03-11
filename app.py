@@ -5,7 +5,7 @@ import os
 import re
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from functools import wraps
 from pathlib import Path
 from typing import Iterable
@@ -25,6 +25,10 @@ app.config["TMDB_API_BASE"] = "https://api.themoviedb.org/3"
 app.config["TMDB_IMAGE_BASE"] = "https://image.tmdb.org/t/p/w500"
 app.config["NEWSAPI_BASE"] = "https://newsapi.org/v2"
 DEFAULT_NEWS_TOPICS = ["movies", "directors", "actors", "film festivals", "film events"]
+SYNC_META_KEYS = {"news": "news_auto", "tmdb": "tmdb_auto"}
+NEWS_SYNC_INTERVAL = timedelta(days=2)
+TMDB_SYNC_INTERVAL = timedelta(days=3)
+GENRES = ["Action", "Comedy", "Drama", "Science Fiction", "Romance", "Thriller", "Horror", "Adventure", "Documentary"]
 app.config["PROFILE_UPLOAD_DIR"] = os.path.join(app.root_path, "static", "uploads", "profiles")
 app.config["PROFILE_UPLOAD_URL_PREFIX"] = "/static/uploads/profiles/"
 app.config["PLAYLIST_UPLOAD_DIR"] = os.path.join(app.root_path, "static", "uploads", "playlists")
@@ -33,15 +37,6 @@ app.config["ALLOWED_PROFILE_EXTENSIONS"] = {"png", "jpg", "jpeg", "webp", "gif"}
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 
 _tmdb_bootstrap_attempted = False
-
-MOOD_GENRE_MAP = {
-    "happy": "Comedy",
-    "sad": "Drama",
-    "adrenaline": "Action",
-    "curious": "Science Fiction",
-    "romantic": "Romance",
-    "spooky": "Thriller",
-}
 
 EMAIL_REGEX = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
@@ -360,6 +355,71 @@ def run_newsapi_sync(queries: Iterable[str], pages: int, page_size: int) -> dict
                     break
             totals[query] = count
     return totals
+
+
+def get_sync_timestamp(sync_key: str) -> datetime | None:
+    row = get_db().execute(
+        "SELECT last_run FROM sync_meta WHERE sync_key = ?",
+        (sync_key,),
+    ).fetchone()
+    if not row or not row["last_run"]:
+        return None
+    try:
+        return datetime.fromisoformat(row["last_run"])
+    except ValueError:
+        return None
+
+
+def set_sync_timestamp(sync_key: str, timestamp: datetime | None = None) -> None:
+    ts = (timestamp or datetime.utcnow()).isoformat(timespec="seconds")
+    db = get_db()
+    db.execute(
+        """
+        INSERT INTO sync_meta (sync_key, last_run)
+        VALUES (?, ?)
+        ON CONFLICT(sync_key) DO UPDATE SET last_run = excluded.last_run
+        """,
+        (sync_key, ts),
+    )
+    db.commit()
+
+
+def sync_due(sync_key: str, interval: timedelta) -> bool:
+    last = get_sync_timestamp(sync_key)
+    if not last:
+        return True
+    return datetime.utcnow() - last >= interval
+
+
+def ensure_news_autosync() -> None:
+    if not is_newsapi_configured():
+        return
+    if not sync_due(SYNC_META_KEYS["news"], NEWS_SYNC_INTERVAL):
+        return
+    try:
+        run_newsapi_sync(DEFAULT_NEWS_TOPICS, pages=3, page_size=25)
+        set_sync_timestamp(SYNC_META_KEYS["news"])
+    except Exception as exc:
+        app.logger.error("automatic news sync failed", exc_info=exc)
+
+
+def ensure_tmdb_autosync() -> None:
+    if not is_tmdb_configured():
+        return
+    if not sync_due(SYNC_META_KEYS["tmdb"], TMDB_SYNC_INTERVAL):
+        return
+    try:
+        with open_sync_connection() as conn:
+            sync_tmdb_genres(conn)
+            sync_tmdb_movies(
+                pages=3,
+                source="popular",
+                include_directors=True,
+                db=conn,
+            )
+        set_sync_timestamp(SYNC_META_KEYS["tmdb"])
+    except Exception as exc:
+        app.logger.error("automatic TMDB sync failed", exc_info=exc)
 
 
 def fetch_tmdb_popular_movies(api_key: str, page: int = 1) -> dict:
@@ -1016,6 +1076,14 @@ def init_db() -> None:
     ensure_column("searchhistory", "target_panel_url", "target_panel_url TEXT")
     ensure_column("news", "news_summary", "news_summary TEXT")
     ensure_column("news", "news_image_url", "news_image_url TEXT")
+    get_db().execute(
+        """
+        CREATE TABLE IF NOT EXISTS sync_meta (
+            sync_key TEXT PRIMARY KEY,
+            last_run TEXT
+        )
+        """
+    )
     get_db().execute(
         """
         CREATE TABLE IF NOT EXISTS review_comments (
@@ -1737,6 +1805,9 @@ def home():
     user = current_user()
     if not user:
         return render_template("landing.html")
+
+    ensure_news_autosync()
+    ensure_tmdb_autosync()
 
     db = get_db()
     recommended = db.execute(
@@ -3075,11 +3146,10 @@ def user_following_panel(username: str):
 @login_required
 def recommendations():
     db = get_db()
-    mood = request.args.get("mood", "").strip().lower()
     genre = request.args.get("genre", "").strip()
     query = request.args.get("query", "").strip()
 
-    chosen_genre = genre or MOOD_GENRE_MAP.get(mood, "")
+    chosen_genre = genre
 
     sql = (
         "SELECT m.movie_id, m.title, m.release_year, g.genre_id, g.genre_name, m.rating FROM movies m "
@@ -3096,14 +3166,14 @@ def recommendations():
 
     movies = db.execute(sql, params).fetchall()
     return render_template(
-        "recommendations.html", movies=movies, selected_genre=chosen_genre, mood=mood, query=query
+        "recommendations.html", movies=movies, selected_genre=chosen_genre, query=query
     )
 
 
 @app.route("/moods")
 @login_required
 def moods():
-    return render_template("moods.html", moods=MOOD_GENRE_MAP)
+    return render_template("moods.html", moods=GENRES)
 
 
 @app.route("/sync/tmdb")
@@ -3557,9 +3627,11 @@ def search():
         elif filter_type == "directors":
             results = db.execute(
                 """
-                SELECT director_id, director_first_name, director_last_name
+                SELECT director_id, director_first_name, director_last_name, profile_url
                 FROM directors
                 WHERE LOWER(director_first_name || ' ' || director_last_name) LIKE ?
+                  AND profile_url IS NOT NULL
+                GROUP BY director_id
                 """,
                 (f"%{q.lower()}%",),
             ).fetchall()
@@ -3577,7 +3649,7 @@ def search():
         else:
             needle = q.lower()
             like_query = f"%{needle}%"
-            results = db.execute(
+            candidates = db.execute(
                 """
                 SELECT m.movie_id, m.title, g.genre_id, g.genre_name, m.release_year, m.poster_url
                 FROM movies m
@@ -3588,25 +3660,36 @@ def search():
                 """,
                 (like_query,),
             ).fetchall()
-            if not results:
-                results = db.execute(
+            if not candidates:
+                candidates = db.execute(
                     """
                     SELECT m.movie_id, m.title, g.genre_id, g.genre_name, m.release_year, m.poster_url
                     FROM movies m
                     LEFT JOIN genres g ON g.genre_id = m.genre_id
                     ORDER BY m.rating DESC, m.release_year DESC
-                    LIMIT 200
+                    LIMIT 500
                     """
                 ).fetchall()
 
-            scored = [
-                (row, SequenceMatcher(None, needle, (row["title"] or "").lower()).ratio())
-                for row in results
-            ]
+            scored = []
+            for row in candidates:
+                title = (row["title"] or "").lower()
+                ratio = SequenceMatcher(None, needle, title).ratio()
+                scored.append((row, ratio))
             scored.sort(key=lambda pair: pair[1], reverse=True)
-            filtered = [row for row, ratio in scored if ratio >= 0.3]
+
+            # Prefer rows where majority of query words appear in title
+            query_words = [word for word in needle.split() if word]
+            def word_match(row):
+                title = (row["title"] or "").lower()
+                return sum(1 for w in query_words if w in title) / max(len(query_words), 1)
+
+            filtered = [
+                row for row, ratio in scored
+                if ratio >= 0.45 or word_match(row) >= 0.6
+            ]
             if not filtered:
-                filtered = [row for row, _ in scored][:20]
+                filtered = [row for row, _ in scored][:25]
             results = filtered
             if results:
                 target = next((r for r in results if r["title"].lower() == q.lower()), results[0])

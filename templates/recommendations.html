@@ -8,7 +8,6 @@
     <input name="genre" placeholder="Genre" value="{{ selected_genre }}">
     <button class="btn" type="submit">Find</button>
   </form>
-  {% if mood %}<p class="muted">Mood selected: {{ mood }}</p>{% endif %}
   {% for movie in movies %}
     <article class="card">
       <p><strong><a class="link" href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">{{ movie.title }}</a></strong> {% set movie_id = movie.movie_id %}{% include '_movie_heart.html' %} ({{ movie.release_year }})</p>

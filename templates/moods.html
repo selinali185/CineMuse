@@ -2,12 +2,12 @@
 {% block title %}CineMuse | Moods{% endblock %}
 {% block content %}
 <section class="panel">
-  <h1>Mood-Based Discovery</h1>
+  <h1>Genre Discovery</h1>
   <div class="grid mood-grid">
-    {% for mood, genre in moods.items() %}
-      <a class="card mood" href="{{ url_for('recommendations', mood=mood) }}">
-        <strong>{{ mood|capitalize }}</strong>
-        <p>{{ genre }}</p>
+    {% for genre in moods %}
+      <a class="card mood" href="{{ url_for('recommendations', genre=genre) }}">
+        <strong>{{ genre }}</strong>
+        <p>{{ genre }} movies</p>
       </a>
     {% endfor %}
   </div>
