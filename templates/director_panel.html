@@ -1,3 +1,4 @@
+{% from '_bio_snippet.html' import render_bio %}
 <section class="panel user-panel-card">
   <div class="detail-grid">
     <div>
@@ -9,7 +10,7 @@
     </div>
     <div>
       <h3>{{ director.director_first_name }} {{ director.director_last_name }}</h3>
-      <p>{{ director.biography or 'Biography not available.' }}</p>
+      {{ render_bio(director.biography, 'Biography not available.') }}
       <p><a class="link" href="{{ url_for('director_detail', director_id=director.director_id) }}">Open full director page</a></p>
     </div>
   </div>

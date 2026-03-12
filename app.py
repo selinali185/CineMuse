@@ -252,6 +252,14 @@ def tmdb_request(path: str, params: dict[str, str | int] | None = None) -> dict:
     return response.json()
 
 
+def fetch_tmdb_person_bio(tmdb_person_id: int) -> str:
+    try:
+        payload = tmdb_request(f"/person/{tmdb_person_id}", {"language": "en-US"})
+    except Exception:
+        return ""
+    return payload.get("biography") or ""
+
+
 def newsapi_key() -> str:
     return os.environ.get("NEWSAPI_KEY", "").strip()
 
@@ -606,14 +614,15 @@ def fetch_and_store_director_requests(conn: sqlite3.Connection, movie_id: int, a
 
     conn.execute(
         """
-        INSERT INTO directors (director_first_name, director_last_name, tmdb_person_id, profile_url)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO directors (director_first_name, director_last_name, tmdb_person_id, profile_url, biography)
+        VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(tmdb_person_id) DO UPDATE SET
             director_first_name = excluded.director_first_name,
             director_last_name = excluded.director_last_name,
-            profile_url = excluded.profile_url
+            profile_url = excluded.profile_url,
+            biography = COALESCE(excluded.biography, directors.biography)
         """,
-        (first_name, last_name, person_id, profile_url),
+        (first_name, last_name, person_id, profile_url, biography),
     )
     director_row = conn.execute(
         "SELECT director_id FROM directors WHERE tmdb_person_id = ?",
@@ -790,17 +799,19 @@ def sync_tmdb_director_for_movie(tmdb_movie_id: int, db: sqlite3.Connection | No
         f"{app.config['TMDB_IMAGE_BASE']}{profile_path}" if profile_path else None
     )
     tmdb_person_id = int(director["id"])
+    biography = fetch_tmdb_person_bio(tmdb_person_id)
 
     db.execute(
         """
         INSERT INTO directors (director_first_name, director_last_name, tmdb_person_id, profile_url, biography)
-        VALUES (?, ?, ?, ?, COALESCE((SELECT biography FROM directors WHERE tmdb_person_id = ?), ''))
+        VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(tmdb_person_id) DO UPDATE SET
             director_first_name = excluded.director_first_name,
             director_last_name = excluded.director_last_name,
-            profile_url = excluded.profile_url
+            profile_url = excluded.profile_url,
+            biography = COALESCE(excluded.biography, directors.biography)
         """,
-        (first_name, last_name, tmdb_person_id, profile_url, tmdb_person_id),
+        (first_name, last_name, tmdb_person_id, profile_url, biography),
     )
     db.commit()
     row = db.execute(
@@ -1568,6 +1579,27 @@ def director_detail(director_id: int):
     if not director:
         flash("Director not found.", "error")
         return redirect(url_for("home"))
+    if director and not director["biography"]:
+        person = db.execute(
+            "SELECT tmdb_person_id FROM directors WHERE director_id = ?",
+            (director_id,),
+        ).fetchone()
+        if person and person["tmdb_person_id"]:
+            bio = fetch_tmdb_person_bio(person["tmdb_person_id"])
+            if bio:
+                db.execute(
+                    "UPDATE directors SET biography = ? WHERE director_id = ?",
+                    (bio, director_id),
+                )
+                db.commit()
+                director = db.execute(
+                    """
+                    SELECT director_id, director_first_name, director_last_name, profile_url, biography
+                    FROM directors
+                    WHERE director_id = ?
+                    """,
+                    (director_id,),
+                ).fetchone()
 
     movies = db.execute(
         """
@@ -3204,6 +3236,18 @@ def sync_tmdb():
     return redirect(url_for("home"))
 
 
+@app.route("/search/history/<int:search_id>/delete", methods=["POST"])
+@login_required
+def delete_search_history(search_id):
+    db = get_db()
+    db.execute(
+        "DELETE FROM searchhistory WHERE search_id = ? AND user_id = ?",
+        (search_id, session["user_id"]),
+    )
+    db.commit()
+    return jsonify({"ok": True})
+
+
 @app.route("/sync/news")
 @login_required
 def sync_news():
@@ -3722,7 +3766,7 @@ def search():
 
     history = db.execute(
         """
-        SELECT sh.search_text, COALESCE(sh.search_type, 'movies') AS search_type, sh.target_url, sh.target_panel_url
+        SELECT sh.search_id, sh.search_text, COALESCE(sh.search_type, 'movies') AS search_type, sh.target_url, sh.target_panel_url
         FROM searchhistory sh
         JOIN (
             SELECT

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_bio_snippet.html' import render_bio %}
 {% block title %}CineMuse | @{{ profile_user.username }}{% endblock %}
 {% block content %}
 <section class="panel">
@@ -10,7 +11,7 @@
     {% endif %}
     <div class="profile-meta">
       <h1>{{ profile_user.name }} <span class="muted">@{{ profile_user.username }}</span></h1>
-      <p>{{ profile_user.biography or 'No bio yet.' }}</p>
+      {{ render_bio(profile_user.biography, 'No bio yet.') }}
       <p class="profile-links">
         <a
           class="link"

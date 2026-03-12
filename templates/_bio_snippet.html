@@ -1,0 +1,17 @@
+{% macro render_bio(text, empty='Biography not available.', max_len=320) %}
+  {% if text %}
+    {% set needs_toggle = text|length > max_len %}
+    <div class="bio-block" data-bio-container>
+      <p class="bio-text" data-bio-snippet>{{ text[:max_len] | e }}{% if needs_toggle %}…{% endif %}</p>
+      {% if needs_toggle %}
+        <p class="bio-text bio-full" data-bio-full hidden>{{ text | e }}</p>
+        <button type="button" class="bio-toggle" aria-expanded="false">
+          <span class="bio-toggle-icon" aria-hidden="true">▾</span>
+          <span class="bio-toggle-label" data-bio-toggle-label>show more</span>
+        </button>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="bio-empty">{{ empty }}</p>
+  {% endif %}
+{% endmacro %}

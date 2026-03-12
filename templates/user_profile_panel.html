@@ -1,3 +1,4 @@
+{% from '_bio_snippet.html' import render_bio %}
 <section class="panel user-panel-card">
   <div class="profile-header">
     {% if profile_user.profile_picture_url %}
@@ -7,7 +8,7 @@
     {% endif %}
     <div class="profile-meta">
       <h2>{{ profile_user.name }} <span class="muted">@{{ profile_user.username }}</span></h2>
-      <p>{{ profile_user.biography or 'No bio yet.' }}</p>
+      {{ render_bio(profile_user.biography, 'No bio yet.') }}
       <p class="profile-links">
         <a
           class="link"

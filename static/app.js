@@ -757,3 +757,60 @@
   input.addEventListener('input', render);
   render();
 })();
+
+(() => {
+  const containers = document.querySelectorAll('[data-bio-container]');
+  if (!containers.length) return;
+
+  containers.forEach((container) => {
+    const button = container.querySelector('.bio-toggle');
+    if (!button) return;
+    const snippet = container.querySelector('[data-bio-snippet]');
+    const full = container.querySelector('[data-bio-full]');
+
+    button.addEventListener('click', () => {
+      const currentlyExpanded = button.getAttribute('aria-expanded') === 'true';
+      const nextExpanded = !currentlyExpanded;
+      button.setAttribute('aria-expanded', String(nextExpanded));
+      if (snippet) {
+        snippet.hidden = nextExpanded;
+      }
+      if (full) {
+        full.hidden = !nextExpanded;
+      }
+      const label = button.querySelector('[data-bio-toggle-label]');
+      if (label) {
+        label.textContent = nextExpanded ? 'show less' : 'show more';
+      }
+    });
+  });
+})();
+
+(() => {
+  const buttons = document.querySelectorAll('.search-history-remove');
+  if (!buttons.length) return;
+
+  buttons.forEach((button) => {
+    button.addEventListener('click', async () => {
+      const searchId = button.dataset.searchId;
+      if (!searchId) return;
+      button.disabled = true;
+      try {
+        const resp = await fetch(`/search/history/${searchId}/delete`, {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+        if (resp.ok) {
+          const item = button.closest('.search-history-item');
+          if (item) {
+            item.remove();
+          }
+        }
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+})();

@@ -59,20 +59,23 @@
 
   <h2>Recent Searches</h2>
   {% for h in history %}
-    <p>
-      {% if h.target_url %}
-        <a
-          class="link"
-          href="{{ h.target_url }}"
-          {% if h.target_panel_url %}
-            data-open-user-panel
-            data-panel-url="{{ h.target_panel_url }}"
-          {% endif %}
-        >{{ h.search_text }}</a>
-      {% else %}
-        {{ h.search_text }}
-      {% endif %}
-    </p>
+    <div class="search-history-item" data-search-id="{{ h.search_id }}">
+      <div class="search-history-text">
+        {% if h.target_url %}
+          <a
+            class="link"
+            href="{{ h.target_url }}"
+            {% if h.target_panel_url %}
+              data-open-user-panel
+              data-panel-url="{{ h.target_panel_url }}"
+            {% endif %}
+          >{{ h.search_text }}</a>
+        {% else %}
+          {{ h.search_text }}
+        {% endif %}
+      </div>
+      <button type="button" class="search-history-remove" aria-label="Remove recent search" data-search-id="{{ h.search_id }}">×</button>
+    </div>
   {% else %}
     <p>No search history yet.</p>
   {% endfor %}
