@@ -8,54 +8,79 @@
     <select name="type">
       <option value="movies" {% if filter_type == 'movies' %}selected{% endif %}>Movies</option>
       <option value="directors" {% if filter_type == 'directors' %}selected{% endif %}>Directors</option>
+      <option value="genres" {% if filter_type == 'genres' %}selected{% endif %}>Genres</option>
       <option value="users" {% if filter_type == 'users' %}selected{% endif %}>Users</option>
     </select>
     <button class="btn" type="submit">Search</button>
   </form>
 
   <h2>Results</h2>
-  {% for result in results %}
-    <article class="card search-result">
-      {% if filter_type == 'movies' %}
-        <div class="search-result-row">
-          <div class="search-result-poster">
-            {% if result.poster_url %}
-              <a href="{{ url_for('movie_detail', movie_id=result.movie_id) }}">
-                <img src="{{ result.poster_url }}" alt="{{ result.title }} poster">
-              </a>
-            {% endif %}
-          </div>
-          <div class="search-result-body">
-            <p class="search-result-title">
-              <strong><a class="link" href="{{ url_for('movie_detail', movie_id=result.movie_id) }}">{{ result.title }}</a></strong>
+      {% for result in results %}
+        <article class="card search-result">
+          {% if filter_type == 'movies' %}
+            <div class="search-result-row">
+              <div class="search-result-poster">
+                {% if result.poster_url %}
+                  <a href="{{ url_for('movie_detail', movie_id=result.movie_id) }}">
+                    <img src="{{ result.poster_url }}" alt="{{ result.title }} poster">
+                  </a>
+                {% endif %}
+              </div>
+              <div class="search-result-body">
+                <p class="search-result-title">
+                  <strong><a class="link" href="{{ url_for('movie_detail', movie_id=result.movie_id) }}">{{ result.title }}</a></strong>
+                </p>
+                <p class="search-result-meta">
+                  {% if result.genre_id %}
+                    <a class="link" href="{{ url_for('genre_detail', genre_id=result.genre_id) }}">{{ result.genre_name }}</a>
+                  {% else %}
+                    {{ result.genre_name }}
+                  {% endif %}
+                  · {{ result.release_year }}
+                </p>
+              </div>
+            </div>
+          {% elif filter_type == 'directors' %}
+            <div class="search-result-row director-row">
+              <div class="search-result-poster">
+                {% if result.profile_url %}
+                  <a href="{{ url_for('director_detail', director_id=result.director_id) }}">
+                    <img src="{{ result.profile_url }}" alt="{{ result.director_first_name }} {{ result.director_last_name }}">
+                  </a>
+                {% else %}
+                  <div class="search-result-poster-placeholder">No image</div>
+                {% endif %}
+              </div>
+              <div class="search-result-body">
+                <p class="search-result-title">
+                  <strong>
+                    <a class="link" href="{{ url_for('director_detail', director_id=result.director_id) }}">
+                      {{ result.director_first_name }} {{ result.director_last_name }}
+                    </a>
+                  </strong>
+                </p>
+                {% if result.biography %}
+                  <p class="search-result-meta">{{ result.biography[:180] }}{% if result.biography|length > 180 %}…{% endif %}</p>
+                {% endif %}
+              </div>
+            </div>
+          {% elif filter_type == 'genres' %}
+            <p><a class="link" href="{{ url_for('genre_detail', genre_id=result.genre_id) }}">{{ result.genre_name }}</a></p>
+          {% else %}
+            <p>
+              <a
+                class="link"
+                href="{{ url_for('user_profile', username=result.username) }}"
+                data-open-user-panel
+                data-panel-url="{{ url_for('user_profile_panel', username=result.username) }}"
+              >@{{ result.username }}</a>
+              · {{ result.name }}
             </p>
-            <p class="search-result-meta">
-              {% if result.genre_id %}
-                <a class="link" href="{{ url_for('genre_detail', genre_id=result.genre_id) }}">{{ result.genre_name }}</a>
-              {% else %}
-                {{ result.genre_name }}
-              {% endif %}
-              · {{ result.release_year }}
-            </p>
-          </div>
-        </div>
-      {% elif filter_type == 'directors' %}
-        <p><a class="link" href="{{ url_for('director_detail', director_id=result.director_id) }}">{{ result.director_first_name }} {{ result.director_last_name }}</a></p>
+          {% endif %}
+        </article>
       {% else %}
-        <p>
-          <a
-            class="link"
-            href="{{ url_for('user_profile', username=result.username) }}"
-            data-open-user-panel
-            data-panel-url="{{ url_for('user_profile_panel', username=result.username) }}"
-          >@{{ result.username }}</a>
-          · {{ result.name }}
-        </p>
-      {% endif %}
-    </article>
-  {% else %}
-    <p>No results yet.</p>
-  {% endfor %}
+        <p>No results yet.</p>
+      {% endfor %}
 
   <h2>Recent Searches</h2>
   {% for h in history %}

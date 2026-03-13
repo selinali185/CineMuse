@@ -7,20 +7,38 @@
 </section>
 
 <section class="panel">
-  {% for movie in movies %}
-    <article class="card">
-      <p>
-        <a class="link" href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">{{ movie.title }}</a> {% set movie_id = movie.movie_id %}{% include '_movie_heart.html' %}
-        {% if movie.release_year %}({{ movie.release_year }}){% endif %}
-        · {{ movie.rating }}/5
-        {% if movie.director_id %}
-          · Director:
-          <a class="link" href="{{ url_for('director_detail', director_id=movie.director_id) }}">{{ movie.director_first_name }} {{ movie.director_last_name }}</a>
-        {% endif %}
-      </p>
-    </article>
+  {% if movies %}
+    <div class="genre-movie-list">
+      {% for movie in movies %}
+        <article class="card genre-movie-card">
+          <div class="genre-movie-row">
+            <div class="genre-movie-poster">
+              {% if movie.poster_url %}
+                <a href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">
+                  <img src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+                </a>
+              {% else %}
+                <div class="genre-movie-poster-placeholder">No poster</div>
+              {% endif %}
+            </div>
+            <div class="genre-movie-body">
+              <p class="genre-movie-title">
+                <a class="link" href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">{{ movie.title }}</a>
+                {% set movie_id = movie.movie_id %}{% include '_movie_heart.html' %}
+              </p>
+              <p class="genre-movie-meta">
+                {% if movie.release_year %}{{ movie.release_year }} · {% endif %}{{ movie.rating }}/5
+                {% if movie.director_id %}
+                  · Directed by <a class="link" href="{{ url_for('director_detail', director_id=movie.director_id) }}">{{ movie.director_first_name }} {{ movie.director_last_name }}</a>
+                {% endif %}
+              </p>
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
   {% else %}
     <p>No movies found in this genre.</p>
-  {% endfor %}
+  {% endif %}
 </section>
 {% endblock %}

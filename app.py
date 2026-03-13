@@ -9,6 +9,7 @@ from datetime import datetime, timezone, timedelta
 from functools import wraps
 from pathlib import Path
 from typing import Iterable
+from urllib.parse import urlparse, urlunparse
 
 import requests
 from difflib import SequenceMatcher
@@ -25,6 +26,75 @@ app.config["TMDB_API_BASE"] = "https://api.themoviedb.org/3"
 app.config["TMDB_IMAGE_BASE"] = "https://image.tmdb.org/t/p/w500"
 app.config["NEWSAPI_BASE"] = "https://newsapi.org/v2"
 DEFAULT_NEWS_TOPICS = ["movies", "directors", "actors", "film festivals", "film events"]
+MOVIE_NEWS_KEYWORDS = (
+    "movie",
+    "film",
+    "cinema",
+    "director",
+    "actor",
+    "actress",
+    "screening",
+    "premiere",
+    "trailer",
+    "festival",
+    "sundance",
+    "tiff",
+    "cannes",
+    "oscar",
+    "bafta",
+    "academy awards",
+    "box office",
+    "indie",
+    "streaming",
+    "hollywood",
+    "netflix",
+    "disney",
+    "pixar",
+)
+
+
+def is_movie_news_text(title: str, summary: str, content: str | None = None) -> bool:
+    combined = " ".join(chunk for chunk in (title, summary, content or "") if chunk and chunk.strip()).lower()
+    return any(keyword in combined for keyword in MOVIE_NEWS_KEYWORDS)
+
+
+def normalize_news_url(url: str) -> str:
+    if not url:
+        return ""
+    try:
+        parts = urlparse(url)
+    except ValueError:
+        return url.strip()
+    scheme = parts.scheme or "https"
+    netloc = parts.netloc.lower()
+    path = parts.path.rstrip("/") or "/"
+    return urlunparse((scheme, netloc, path, "", "", ""))
+
+
+def clean_news_table(conn: sqlite3.Connection) -> set[str]:
+    rows = conn.execute(
+        "SELECT news_url, news_name, news_summary, news_image_url FROM news ORDER BY news_datetime DESC"
+    ).fetchall()
+    kept: set[str] = set()
+    removed = 0
+    for row in rows:
+        title = row["news_name"] or ""
+        summary = row["news_summary"] or ""
+        image_url = row["news_image_url"]
+        norm = normalize_news_url(row["news_url"])
+        keep = bool(image_url) and is_movie_news_text(title, summary)
+        if norm and norm in kept:
+            keep = False
+        if not keep:
+            conn.execute("DELETE FROM news WHERE news_url = ?", (row["news_url"],))
+            removed += 1
+            continue
+        if norm:
+            kept.add(norm)
+    conn.commit()
+    if removed:
+        app.logger.debug("Removed %d outdated news rows", removed)
+    return kept
 SYNC_META_KEYS = {"news": "news_auto", "tmdb": "tmdb_auto"}
 NEWS_SYNC_INTERVAL = timedelta(days=2)
 TMDB_SYNC_INTERVAL = timedelta(days=3)
@@ -329,6 +399,7 @@ def run_newsapi_sync(queries: Iterable[str], pages: int, page_size: int) -> dict
         raise RuntimeError("NEWSAPI_KEY missing")
     totals: dict[str, int] = {}
     with open_sync_connection() as conn:
+        existing_norms = clean_news_table(conn)
         for query in queries:
             count = 0
             for page in range(1, pages + 1):
@@ -342,7 +413,15 @@ def run_newsapi_sync(queries: Iterable[str], pages: int, page_size: int) -> dict
                         continue
                     title = article.get("title") or "News"
                     summary = article.get("description") or ""
+                    content = article.get("content")
+                    if not is_movie_news_text(title, summary, content):
+                        continue
                     image_url = article.get("urlToImage")
+                    if not image_url:
+                        continue
+                    norm = normalize_news_url(url)
+                    if norm and norm in existing_norms:
+                        continue
                     published = article.get("publishedAt") or datetime.utcnow().isoformat(
                         timespec="seconds"
                     )
@@ -359,6 +438,8 @@ def run_newsapi_sync(queries: Iterable[str], pages: int, page_size: int) -> dict
                         author_last=author_last,
                     )
                     count += 1
+                    if norm:
+                        existing_norms.add(norm)
                 if len(articles) < page_size:
                     break
             totals[query] = count
@@ -821,11 +902,21 @@ def sync_tmdb_director_for_movie(tmdb_movie_id: int, db: sqlite3.Connection | No
     return row["director_id"] if row else None
 
 
-def sync_tmdb_movies(pages: int = 10, source: str = "popular", include_directors: bool = False, db: sqlite3.Connection | None = None) -> int:
+def sync_tmdb_movies(
+    pages: int = 10,
+    source: str = "popular",
+    include_directors: bool = False,
+    start_page: int = 1,
+    db: sqlite3.Connection | None = None,
+) -> int:
     db = db or get_db()
     inserted_or_updated = 0
     endpoint = "/movie/popular" if source == "popular" else "/trending/movie/week"
-    for page in range(1, max(1, min(pages, 50)) + 1):
+    pages_to_fetch = max(1, min(pages, 50))
+    first_page = max(1, start_page)
+    last_page = min(first_page + pages_to_fetch - 1, 1000)
+
+    for page in range(first_page, last_page + 1):
         payload = tmdb_request(endpoint, {"language": "en-US", "page": page})
         for movie in payload.get("results", []):
             tmdb_movie_id = movie.get("id")
@@ -1263,6 +1354,7 @@ def movie_detail(movie_id: int):
             m.release_year,
             m.rating,
             m.poster_url,
+            m.tmdb_movie_id,
             m.description,
             g.genre_id,
             g.genre_name,
@@ -1276,6 +1368,32 @@ def movie_detail(movie_id: int):
         """,
         (movie_id,),
     ).fetchone()
+    api_key = tmdb_api_key()
+    if movie and not movie["poster_url"] and api_key:
+        updated = fetch_movie_details_and_upsert_requests(db, movie_id, api_key)
+        if updated:
+            movie = db.execute(
+                """
+                SELECT
+                    m.movie_id,
+                    m.title,
+                    m.release_year,
+                    m.rating,
+                    m.poster_url,
+                    m.tmdb_movie_id,
+                    m.description,
+                    g.genre_id,
+                    g.genre_name,
+                    d.director_id,
+                    d.director_first_name,
+                    d.director_last_name
+                FROM movies m
+                LEFT JOIN genres g ON g.genre_id = m.genre_id
+                LEFT JOIN directors d ON d.director_id = m.director_id
+                WHERE m.movie_id = ?
+                """,
+                (movie_id,),
+            ).fetchone()
     if not movie:
         flash("Movie not found.", "error")
         return redirect(url_for("home"))
@@ -3202,11 +3320,6 @@ def recommendations():
     )
 
 
-@app.route("/moods")
-@login_required
-def moods():
-    return render_template("moods.html", moods=GENRES)
-
 
 @app.route("/sync/tmdb")
 @login_required
@@ -3216,6 +3329,7 @@ def sync_tmdb():
         return redirect(url_for("settings"))
 
     pages = request.args.get("pages", default=10, type=int)
+    start_page = request.args.get("start_page", default=1, type=int)
     source = request.args.get("source", default="popular", type=str)
     include_directors = request.args.get("include_directors", default=0, type=int) == 1
     try:
@@ -3225,6 +3339,7 @@ def sync_tmdb():
                 pages=pages,
                 source=source,
                 include_directors=include_directors,
+                start_page=start_page,
                 db=conn,
             )
         flash(
@@ -3671,14 +3786,22 @@ def search():
         elif filter_type == "directors":
             results = db.execute(
                 """
-                SELECT director_id, director_first_name, director_last_name, profile_url
+                SELECT director_id, director_first_name, director_last_name, profile_url, biography
                 FROM directors
                 WHERE LOWER(director_first_name || ' ' || director_last_name) LIKE ?
-                  AND profile_url IS NOT NULL
-                GROUP BY director_id
+                ORDER BY (profile_url IS NOT NULL) DESC, director_last_name, director_first_name
                 """,
                 (f"%{q.lower()}%",),
             ).fetchall()
+            seen_directors: set[str] = set()
+            deduped: list[sqlite3.Row] = []
+            for row in results:
+                name_key = f"{row['director_first_name']} {row['director_last_name']}".strip().lower()
+                if name_key in seen_directors:
+                    continue
+                seen_directors.add(name_key)
+                deduped.append(row)
+            results = deduped
             if results:
                 target = next(
                     (
@@ -3690,6 +3813,24 @@ def search():
                 )
                 history_target_url = url_for("director_detail", director_id=target["director_id"])
                 history_target_panel_url = url_for("director_panel", director_id=target["director_id"])
+        elif filter_type == "genres":
+            results = db.execute(
+                """
+                SELECT genre_id, genre_name
+                FROM genres
+                WHERE LOWER(genre_name) LIKE ?
+                ORDER BY genre_name
+                LIMIT 50
+                """,
+                (f"%{q.lower()}%",),
+            ).fetchall()
+            if results:
+                target = next(
+                    (r for r in results if r["genre_name"].lower() == q.lower()),
+                    results[0],
+                )
+                history_target_url = url_for("genre_detail", genre_id=target["genre_id"])
+                history_target_panel_url = None
         else:
             needle = q.lower()
             like_query = f"%{needle}%"
@@ -3739,7 +3880,6 @@ def search():
                 target = next((r for r in results if r["title"].lower() == q.lower()), results[0])
                 history_target_url = url_for("movie_detail", movie_id=target["movie_id"])
                 history_target_panel_url = url_for("movie_panel", movie_id=target["movie_id"])
-
         db.execute(
             """
             DELETE FROM searchhistory

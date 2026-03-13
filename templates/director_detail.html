@@ -18,12 +18,35 @@
 
 <section class="panel">
   <h2>Movies</h2>
-  {% for movie in movies %}
-    <article class="card">
-      <p><a class="link" href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">{{ movie.title }}</a> {% set movie_id = movie.movie_id %}{% include '_movie_heart.html' %} {% if movie.release_year %}({{ movie.release_year }}){% endif %} · {{ movie.rating }}/5</p>
-    </article>
+  {% if movies %}
+    <div class="director-movie-list">
+      {% for movie in movies %}
+        <article class="card director-movie-card">
+          <div class="director-movie-row">
+            <div class="director-movie-poster">
+              {% if movie.poster_url %}
+                <a href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">
+                  <img src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+                </a>
+              {% else %}
+                <div class="director-movie-poster-placeholder">No poster</div>
+              {% endif %}
+            </div>
+            <div class="director-movie-body">
+              <p class="director-movie-title">
+                <a class="link" href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">{{ movie.title }}</a>
+                {% set movie_id = movie.movie_id %}{% include '_movie_heart.html' %}
+              </p>
+              <p class="director-movie-meta">
+                {% if movie.release_year %}{{ movie.release_year }} · {% endif %}{{ movie.rating }}/5
+              </p>
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
   {% else %}
     <p>No movies found for this director.</p>
-  {% endfor %}
+  {% endif %}
 </section>
 {% endblock %}
