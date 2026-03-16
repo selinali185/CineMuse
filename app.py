@@ -1789,6 +1789,29 @@ def director_panel(director_id: int):
     return render_template("director_panel.html", director=director, movies=movies)
 
 
+@app.route("/genres/<int:genre_id>/panel")
+@login_required
+def genre_panel(genre_id: int):
+    db = get_db()
+    genre = db.execute(
+        "SELECT genre_id, genre_name FROM genres WHERE genre_id = ?",
+        (genre_id,),
+    ).fetchone()
+    if not genre:
+        return "<p>Genre not found.</p>", 404
+    movies = db.execute(
+        """
+        SELECT movie_id, title, poster_url
+        FROM movies
+        WHERE genre_id = ?
+        ORDER BY rating DESC, release_year DESC
+        LIMIT 6
+        """,
+        (genre_id,),
+    ).fetchall()
+    return render_template("genre_panel.html", genre=genre, movies=movies)
+
+
 @app.route("/genre/<int:genre_id>")
 @login_required
 def genre_detail(genre_id: int):

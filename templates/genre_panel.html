@@ -1,0 +1,33 @@
+<section class="panel user-panel-card">
+  <h3>{{ genre.genre_name }}</h3>
+  <p class="muted">Genre overview</p>
+  <p>{{ genre.genre_description or 'Browse movies that match this genre.' }}</p>
+  <p><a class="link" href="{{ url_for('genre_detail', genre_id=genre.genre_id) }}">Open full genre page</a></p>
+</section>
+
+<section class="panel user-panel-card">
+  <h3>Highlighted movies</h3>
+  {% if movies %}
+    <div class="search-panel-movie-grid">
+      {% for movie in movies %}
+        <article class="card search-panel-movie-card">
+          <a
+            class="link"
+            href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}"
+            data-open-user-panel
+            data-panel-url="{{ url_for('movie_panel', movie_id=movie.movie_id) }}"
+          >
+            {% if movie.poster_url %}
+              <img class="favorite-poster" src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+            {% else %}
+              <div class="favorite-poster favorite-poster-placeholder">No poster</div>
+            {% endif %}
+            <p class="favorite-title">{{ movie.title }}</p>
+          </a>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No movies yet.</p>
+  {% endif %}
+</section>

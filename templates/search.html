@@ -28,7 +28,14 @@
               </div>
               <div class="search-result-body">
                 <p class="search-result-title">
-                  <strong><a class="link" href="{{ url_for('movie_detail', movie_id=result.movie_id) }}">{{ result.title }}</a></strong>
+                  <strong>
+                    <a
+                      class="link"
+                      href="{{ url_for('movie_detail', movie_id=result.movie_id) }}"
+                      data-open-user-panel
+                      data-panel-url="{{ url_for('movie_panel', movie_id=result.movie_id) }}"
+                    >{{ result.title }}</a>
+                  </strong>
                 </p>
                 <p class="search-result-meta">
                   {% if result.genre_id %}
@@ -44,7 +51,11 @@
             <div class="search-result-row director-row">
               <div class="search-result-poster">
                 {% if result.profile_url %}
-                  <a href="{{ url_for('director_detail', director_id=result.director_id) }}">
+                  <a
+                    href="{{ url_for('director_detail', director_id=result.director_id) }}"
+                    data-open-user-panel
+                    data-panel-url="{{ url_for('director_panel', director_id=result.director_id) }}"
+                  >
                     <img src="{{ result.profile_url }}" alt="{{ result.director_first_name }} {{ result.director_last_name }}">
                   </a>
                 {% else %}
@@ -54,7 +65,12 @@
               <div class="search-result-body">
                 <p class="search-result-title">
                   <strong>
-                    <a class="link" href="{{ url_for('director_detail', director_id=result.director_id) }}">
+                    <a
+                      class="link"
+                      href="{{ url_for('director_detail', director_id=result.director_id) }}"
+                      data-open-user-panel
+                      data-panel-url="{{ url_for('director_panel', director_id=result.director_id) }}"
+                    >
                       {{ result.director_first_name }} {{ result.director_last_name }}
                     </a>
                   </strong>
@@ -65,7 +81,14 @@
               </div>
             </div>
           {% elif filter_type == 'genres' %}
-            <p><a class="link" href="{{ url_for('genre_detail', genre_id=result.genre_id) }}">{{ result.genre_name }}</a></p>
+            <p>
+              <a
+                class="link"
+                href="{{ url_for('genre_detail', genre_id=result.genre_id) }}"
+                data-open-user-panel
+                data-panel-url="{{ url_for('genre_panel', genre_id=result.genre_id) }}"
+              >{{ result.genre_name }}</a>
+            </p>
           {% else %}
             <p>
               <a
