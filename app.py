@@ -19,7 +19,12 @@ from flask import Flask, flash, g, jsonify, redirect, render_template, request, 
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    static_folder="assets",
+    static_url_path="/assets",
+    template_folder="page_templates",
+)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "cinemuse-dev-secret")
 app.config["DATABASE"] = os.path.join(app.root_path, "cinemuse.db")
 app.config["TMDB_API_BASE"] = "https://api.themoviedb.org/3"
@@ -99,10 +104,10 @@ SYNC_META_KEYS = {"news": "news_auto", "tmdb": "tmdb_auto"}
 NEWS_SYNC_INTERVAL = timedelta(days=2)
 TMDB_SYNC_INTERVAL = timedelta(days=3)
 GENRES = ["Action", "Comedy", "Drama", "Science Fiction", "Romance", "Thriller", "Horror", "Adventure", "Documentary"]
-app.config["PROFILE_UPLOAD_DIR"] = os.path.join(app.root_path, "static", "uploads", "profiles")
-app.config["PROFILE_UPLOAD_URL_PREFIX"] = "/static/uploads/profiles/"
-app.config["PLAYLIST_UPLOAD_DIR"] = os.path.join(app.root_path, "static", "uploads", "playlists")
-app.config["PLAYLIST_UPLOAD_URL_PREFIX"] = "/static/uploads/playlists/"
+app.config["PROFILE_UPLOAD_DIR"] = os.path.join(app.root_path, "assets", "uploads", "profiles")
+app.config["PROFILE_UPLOAD_URL_PREFIX"] = "/assets/uploads/profiles/"
+app.config["PLAYLIST_UPLOAD_DIR"] = os.path.join(app.root_path, "assets", "uploads", "playlists")
+app.config["PLAYLIST_UPLOAD_URL_PREFIX"] = "/assets/uploads/playlists/"
 app.config["ALLOWED_PROFILE_EXTENSIONS"] = {"png", "jpg", "jpeg", "webp", "gif"}
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 
@@ -204,6 +209,7 @@ def execute_many(sql: str) -> None:
 
 
 def ensure_upload_dirs() -> None:
+    # Guarantee the profile and playlist upload directories exist before saving files.
     Path(app.config["PROFILE_UPLOAD_DIR"]).mkdir(parents=True, exist_ok=True)
     Path(app.config["PLAYLIST_UPLOAD_DIR"]).mkdir(parents=True, exist_ok=True)
 
@@ -307,6 +313,7 @@ def get_tmdb_session() -> requests.Session:
 
 
 def tmdb_request(path: str, params: dict[str, str | int] | None = None) -> dict:
+    # Prefer the read-access token but fall back to the API key when necessary.
     token = tmdb_token()
     query_params = dict(params or {})
     if not token and tmdb_api_key():
@@ -341,6 +348,7 @@ def is_newsapi_configured() -> bool:
 def newsapi_request(query: str, page: int = 1, page_size: int = 20) -> dict:
     if not is_newsapi_configured():
         raise RuntimeError("NEWSAPI_KEY is not set.")
+    # Provide the NewsAPI key via Authorization so we stay within quota.
     headers = {"Authorization": newsapi_key()}
     params = {"q": query, "page": page, "pageSize": page_size, "language": "en", "sortBy": "publishedAt"}
     response = requests.get(f"{app.config['NEWSAPI_BASE']}/everything", params=params, headers=headers, timeout=20)
@@ -486,6 +494,7 @@ def ensure_news_autosync() -> None:
     if not sync_due(SYNC_META_KEYS["news"], NEWS_SYNC_INTERVAL):
         return
     try:
+        # Automatically refresh the news cache every few days using curated topics.
         run_newsapi_sync(DEFAULT_NEWS_TOPICS, pages=3, page_size=25)
         set_sync_timestamp(SYNC_META_KEYS["news"])
     except Exception as exc:
@@ -498,6 +507,7 @@ def ensure_tmdb_autosync() -> None:
     if not sync_due(SYNC_META_KEYS["tmdb"], TMDB_SYNC_INTERVAL):
         return
     try:
+        # Keep TMDB metadata current by syncing genres and a subset of popular movies.
         with open_sync_connection() as conn:
             sync_tmdb_genres(conn)
             sync_tmdb_movies(
@@ -576,6 +586,7 @@ def store_popular_movies(conn: sqlite3.Connection, payload: dict) -> int:
     ensure_movies_genres_directors_tables(conn)
     inserted = 0
     for movie in payload.get("results", []):
+        # Convert TMDB payload to the local schema and keep ratings on a 5-star scale.
         tmdb_movie_id = movie.get("id")
         title = movie.get("title") or movie.get("name")
         if not tmdb_movie_id or not title:
@@ -692,6 +703,7 @@ def fetch_and_store_director_requests(conn: sqlite3.Connection, movie_id: int, a
         else None
     )
     person_id = int(director["id"])
+    biography = fetch_tmdb_person_bio(person_id)
 
     conn.execute(
         """
@@ -909,6 +921,7 @@ def sync_tmdb_movies(
     start_page: int = 1,
     db: sqlite3.Connection | None = None,
 ) -> int:
+    # Page through TMDB movie lists, refreshing genres/directors as configured.
     db = db or get_db()
     inserted_or_updated = 0
     endpoint = "/movie/popular" if source == "popular" else "/trending/movie/week"
